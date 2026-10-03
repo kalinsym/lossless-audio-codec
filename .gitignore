@@ -1,0 +1,10 @@
+build/
+build-*/
+cmake-build-*/
+out/
+corpus/
+.cache/
+.vscode/
+.idea/
+.DS_Store
+compile_commands.json
