@@ -20,6 +20,7 @@ private:
     std::vector<std::uint8_t> buffer_;
     std::uint64_t acc_ = 0;
     unsigned count_ = 0;
+    std::uint64_t total_ = 0;
 };
 
 }
