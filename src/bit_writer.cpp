@@ -16,7 +16,9 @@ void BitWriter::writeBits(std::uint32_t value, unsigned width) {
     }
 }
 
-void BitWriter::writeSigned(std::int32_t, unsigned) {}
+void BitWriter::writeSigned(std::int32_t value, unsigned width) {
+    writeBits(static_cast<std::uint32_t>(value), width);
+}
 
 void BitWriter::writeUnary(std::uint32_t quotient) {
     while (quotient >= 32) {
