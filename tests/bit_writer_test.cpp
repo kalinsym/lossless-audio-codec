@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <limits>
 #include <vector>
 
 #include "lac/bit_writer.hpp"
@@ -61,4 +62,25 @@ TEST(BitWriter, UnaryLongerThanThirtyTwoBits) {
     w.flush();
     EXPECT_EQ(w.bytes(), (Bytes{0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x80}));
     EXPECT_EQ(w.bitCount(), 65u);
+}
+
+TEST(BitWriter, SignedIsTwosComplement) {
+    lac::BitWriter w;
+    w.writeSigned(-1, 4);
+    w.writeSigned(5, 4);
+    w.writeSigned(-3, 3);
+    w.flush();
+    EXPECT_EQ(w.bytes(), (Bytes{0xF5, 0xA0}));
+    EXPECT_EQ(w.bitCount(), 11u);
+}
+
+TEST(BitWriter, SignedExtremes) {
+    lac::BitWriter w;
+    w.writeSigned(-32768, 16);
+    w.writeSigned(32767, 16);
+    w.writeSigned(std::numeric_limits<std::int32_t>::min(), 32);
+    w.writeSigned(std::numeric_limits<std::int32_t>::max(), 32);
+    w.flush();
+    EXPECT_EQ(w.bytes(), (Bytes{0x80, 0x00, 0x7F, 0xFF, 0x80, 0x00, 0x00, 0x00, 0x7F, 0xFF, 0xFF, 0xFF}));
+    EXPECT_EQ(w.bitCount(), 96u);
 }
