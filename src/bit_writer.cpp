@@ -18,7 +18,13 @@ void BitWriter::writeBits(std::uint32_t value, unsigned width) {
 
 void BitWriter::writeSigned(std::int32_t, unsigned) {}
 
-void BitWriter::writeUnary(std::uint32_t) {}
+void BitWriter::writeUnary(std::uint32_t quotient) {
+    while (quotient >= 32) {
+        writeBits(0, 32);
+        quotient -= 32;
+    }
+    writeBits(1, quotient + 1);
+}
 
 void BitWriter::flush() {
     if (count_ == 0) {
