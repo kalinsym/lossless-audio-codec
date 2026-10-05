@@ -43,3 +43,22 @@ TEST(BitWriter, FlushTwice) {
     EXPECT_EQ(w.bytes(), (Bytes{0x80}));
     EXPECT_EQ(w.bitCount(), 1u);
 }
+
+TEST(BitWriter, UnaryIsZerosThenOne) {
+    lac::BitWriter w;
+    w.writeUnary(0);
+    w.writeUnary(3);
+    w.writeUnary(2);
+    w.flush();
+    EXPECT_EQ(w.bytes(), (Bytes{0x89}));
+    EXPECT_EQ(w.bitCount(), 8u);
+}
+
+TEST(BitWriter, UnaryLongerThanThirtyTwoBits) {
+    lac::BitWriter w;
+    w.writeUnary(31);
+    w.writeUnary(32);
+    w.flush();
+    EXPECT_EQ(w.bytes(), (Bytes{0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x80}));
+    EXPECT_EQ(w.bitCount(), 65u);
+}
