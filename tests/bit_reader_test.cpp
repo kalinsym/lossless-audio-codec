@@ -1,0 +1,41 @@
+#include <gtest/gtest.h>
+
+#include <cstdint>
+#include <stdexcept>
+#include <vector>
+
+#include "lac/bit_reader.hpp"
+
+using Bytes = std::vector<std::uint8_t>;
+
+TEST(BitReader, ReadsBackTheWorkedExample) {
+    const Bytes data{0xB2, 0x40};
+    lac::BitReader r(data);
+    EXPECT_EQ(r.readBits(3), 5u);
+    EXPECT_EQ(r.readBits(1), 1u);
+    EXPECT_EQ(r.readBits(6), 9u);
+    EXPECT_FALSE(r.atEnd());
+    EXPECT_EQ(r.readBits(6), 0u);
+    EXPECT_TRUE(r.atEnd());
+}
+
+TEST(BitReader, ReadsFullWidthAtAnOddOffset) {
+    const Bytes data{0xFF, 0xFF, 0xFF, 0xFF, 0x80};
+    lac::BitReader r(data);
+    EXPECT_EQ(r.readBits(1), 1u);
+    EXPECT_EQ(r.readBits(32), 0xFFFFFFFFu);
+    EXPECT_EQ(r.readBits(7), 0u);
+    EXPECT_TRUE(r.atEnd());
+}
+
+TEST(BitReader, ThrowsInsteadOfReadingPastTheEnd) {
+    const Bytes data{0xAB};
+    lac::BitReader r(data);
+    EXPECT_EQ(r.readBits(8), 0xABu);
+    EXPECT_TRUE(r.atEnd());
+    EXPECT_THROW(r.readBits(1), std::out_of_range);
+
+    lac::BitReader r2(data);
+    EXPECT_THROW(r2.readBits(9), std::out_of_range);
+    EXPECT_EQ(r2.readBits(8), 0xABu);
+}
