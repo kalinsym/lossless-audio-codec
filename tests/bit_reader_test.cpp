@@ -68,3 +68,14 @@ TEST(BitReader, SignExtendsSignedValues) {
     EXPECT_EQ(r2.readSigned(32), INT32_MAX);
     EXPECT_TRUE(r2.atEnd());
 }
+
+TEST(BitReader, AlignToByteSkipsPadding) {
+    const Bytes data{0xB2, 0x40, 0xFF};
+    lac::BitReader r(data);
+    EXPECT_EQ(r.readBits(3), 5u);
+    r.alignToByte();
+    EXPECT_EQ(r.readBits(8), 0x40u);
+    r.alignToByte();
+    EXPECT_EQ(r.readBits(8), 0xFFu);
+    EXPECT_TRUE(r.atEnd());
+}

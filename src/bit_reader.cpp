@@ -44,6 +44,10 @@ std::int32_t BitReader::readSigned(unsigned width) {
     return static_cast<std::int32_t>(u);
 }
 
+void BitReader::alignToByte() {
+    count_ = 0;
+}
+
 bool BitReader::atEnd() const {
     return count_ == 0 && next_ == data_.size();
 }
