@@ -25,6 +25,14 @@ std::uint32_t BitReader::readBits(unsigned width) {
     return static_cast<std::uint32_t>((acc_ >> count_) & mask);
 }
 
+std::uint32_t BitReader::readUnary() {
+    std::uint32_t count = 0;
+    while (readBits(1) == 0) {
+        ++count;
+    }
+    return count;
+}
+
 bool BitReader::atEnd() const {
     return count_ == 0 && next_ == data_.size();
 }

@@ -12,6 +12,7 @@ public:
     explicit BitReader(std::span<const std::uint8_t> data);
 
     std::uint32_t readBits(unsigned width);
+    std::uint32_t readUnary();
     bool atEnd() const;
 
 private:

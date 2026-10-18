@@ -39,3 +39,16 @@ TEST(BitReader, ThrowsInsteadOfReadingPastTheEnd) {
     EXPECT_THROW(r2.readBits(9), std::out_of_range);
     EXPECT_EQ(r2.readBits(8), 0xABu);
 }
+
+TEST(BitReader, ReadsUnaryCodes) {
+    const Bytes data{0x89};
+    lac::BitReader r(data);
+    EXPECT_EQ(r.readUnary(), 0u);
+    EXPECT_EQ(r.readUnary(), 3u);
+    EXPECT_EQ(r.readUnary(), 2u);
+    EXPECT_TRUE(r.atEnd());
+
+    const Bytes zeros{0x00, 0x00};
+    lac::BitReader r2(zeros);
+    EXPECT_THROW(r2.readUnary(), std::out_of_range);
+}
