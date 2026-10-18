@@ -48,6 +48,10 @@ void BitReader::alignToByte() {
     count_ = 0;
 }
 
+std::size_t BitReader::bytePosition() const {
+    return next_;
+}
+
 bool BitReader::atEnd() const {
     return count_ == 0 && next_ == data_.size();
 }

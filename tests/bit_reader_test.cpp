@@ -79,3 +79,16 @@ TEST(BitReader, AlignToByteSkipsPadding) {
     EXPECT_EQ(r.readBits(8), 0xFFu);
     EXPECT_TRUE(r.atEnd());
 }
+
+TEST(BitReader, ReportsBytePositionAfterAlignment) {
+    const Bytes data{0xB2, 0x40, 0xFF};
+    lac::BitReader r(data);
+    EXPECT_EQ(r.bytePosition(), 0u);
+    r.readBits(3);
+    r.alignToByte();
+    EXPECT_EQ(r.bytePosition(), 1u);
+    r.readBits(8);
+    EXPECT_EQ(r.bytePosition(), 2u);
+    r.readBits(8);
+    EXPECT_EQ(r.bytePosition(), 3u);
+}
