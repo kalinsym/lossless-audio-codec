@@ -33,6 +33,17 @@ std::uint32_t BitReader::readUnary() {
     return count;
 }
 
+std::int32_t BitReader::readSigned(unsigned width) {
+    if (width == 0) {
+        return 0;
+    }
+    std::int64_t u = readBits(width);
+    if ((u >> (width - 1)) & 1) {
+        u -= std::int64_t{1} << width;
+    }
+    return static_cast<std::int32_t>(u);
+}
+
 bool BitReader::atEnd() const {
     return count_ == 0 && next_ == data_.size();
 }

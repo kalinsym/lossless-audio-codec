@@ -52,3 +52,19 @@ TEST(BitReader, ReadsUnaryCodes) {
     lac::BitReader r2(zeros);
     EXPECT_THROW(r2.readUnary(), std::out_of_range);
 }
+
+TEST(BitReader, SignExtendsSignedValues) {
+    const Bytes data{0xF5, 0x80, 0xA0};
+    lac::BitReader r(data);
+    EXPECT_EQ(r.readSigned(4), -1);
+    EXPECT_EQ(r.readSigned(4), 5);
+    EXPECT_EQ(r.readSigned(8), -128);
+    EXPECT_EQ(r.readSigned(3), -3);
+    EXPECT_EQ(r.readSigned(0), 0);
+
+    const Bytes extremes{0x80, 0x00, 0x00, 0x00, 0x7F, 0xFF, 0xFF, 0xFF};
+    lac::BitReader r2(extremes);
+    EXPECT_EQ(r2.readSigned(32), INT32_MIN);
+    EXPECT_EQ(r2.readSigned(32), INT32_MAX);
+    EXPECT_TRUE(r2.atEnd());
+}

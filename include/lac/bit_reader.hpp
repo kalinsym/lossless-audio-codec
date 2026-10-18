@@ -13,6 +13,7 @@ public:
 
     std::uint32_t readBits(unsigned width);
     std::uint32_t readUnary();
+    std::int32_t readSigned(unsigned width);
     bool atEnd() const;
 
 private:
