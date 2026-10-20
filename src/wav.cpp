@@ -38,12 +38,12 @@ bool hasTag(std::span<const std::uint8_t> b, std::size_t at, std::string_view ta
 
 }
 
-WavAudio readWav(std::span<const std::uint8_t> bytes) {
+WavFile parseWav(std::span<const std::uint8_t> bytes) {
     if (!hasTag(bytes, 0, "RIFF") || !hasTag(bytes, 8, "WAVE")) {
         throw WavError("WAV: not a RIFF/WAVE file");
     }
 
-    WavAudio audio;
+    WavFile audio;
     bool haveFormat = false;
     std::size_t pos = 12;
 
@@ -97,8 +97,8 @@ WavAudio readWav(std::span<const std::uint8_t> bytes) {
     throw WavError("WAV: missing fmt or data chunk");
 }
 
-std::vector<std::uint8_t> writeWav(const WavAudio&) {
-    throw WavError("writeWav: not implemented");
+std::vector<std::uint8_t> serializeWav(const WavFile&) {
+    throw WavError("serializeWav: not implemented");
 }
 
 }

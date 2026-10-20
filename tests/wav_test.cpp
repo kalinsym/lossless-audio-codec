@@ -30,15 +30,16 @@ Bytes minimalMono16() {
 
 TEST(Wav, ParsesMinimalMono16Bit) {
     const Bytes file = minimalMono16();
-    const lac::WavAudio audio = lac::readWav(file);
+    const lac::WavFile audio = lac::parseWav(file);
     EXPECT_EQ(audio.channels, 1u);
     EXPECT_EQ(audio.sampleRate, 44100u);
     EXPECT_EQ(audio.bitsPerSample, 16u);
+    EXPECT_EQ(audio.frameCount(), 2u);
     EXPECT_EQ(audio.samples, (std::vector<std::int32_t>{1000, -32768}));
 }
 
 TEST(Wav, RejectsFileWithoutRiffTag) {
     Bytes file = minimalMono16();
     file[0] = 'X';
-    EXPECT_THROW(lac::readWav(file), lac::WavError);
+    EXPECT_THROW(lac::parseWav(file), lac::WavError);
 }
