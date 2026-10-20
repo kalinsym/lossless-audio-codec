@@ -12,7 +12,8 @@ target_compile_options(lac_warnings INTERFACE
 
 add_library(lac
   src/bit_reader.cpp
-  src/bit_writer.cpp)
+  src/bit_writer.cpp
+  src/wav.cpp)
 target_include_directories(lac PUBLIC include)
 target_link_libraries(lac PRIVATE lac_warnings)
 
@@ -27,6 +28,7 @@ enable_testing()
 include(GoogleTest)
 add_executable(lac_tests
   tests/bit_reader_test.cpp
-  tests/bit_writer_test.cpp)
+  tests/bit_writer_test.cpp
+  tests/wav_test.cpp)
 target_link_libraries(lac_tests PRIVATE lac lac_warnings GTest::gtest_main)
 gtest_discover_tests(lac_tests DISCOVERY_TIMEOUT 30)
