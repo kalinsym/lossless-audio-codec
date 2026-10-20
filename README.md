@@ -7,7 +7,9 @@ Author: Kalin Simeonov. Advisor: Prof. Vladimir Georgiev.
 
 ## Status
 
-Project setup. No codec components are implemented yet.
+The bit-level writer and reader and the WAV parser are implemented and covered by unit tests.
+Supported input: PCM WAV, mono or stereo, 8, 16 or 24 bits per sample.
+Next: WAV writer, then the container format and the first encode/decode round trip.
 
 ## Building
 
@@ -36,7 +38,7 @@ The codec core uses only the C++ standard library. No third-party signal process
 
 ## Roadmap
 
-- [ ] Bit-level stream writer and reader
+- [x] Bit-level stream writer and reader
 - [ ] WAV parser and writer
 - [ ] Round-trip test harness
 - [ ] Container format with verbatim frames
