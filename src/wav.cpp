@@ -24,6 +24,21 @@ std::uint32_t readU32(std::span<const std::uint8_t> b, std::size_t at) {
         | (static_cast<std::uint32_t>(b[at + 3]) << 24);
 }
 
+std::int32_t readSample(std::span<const std::uint8_t> b, std::size_t at, unsigned bits) {
+    if (bits == 8) {
+        return static_cast<std::int32_t>(b[at]) - 128;
+    }
+    std::uint32_t raw = 0;
+    for (unsigned k = 0; k < bits / 8; ++k) {
+        raw |= static_cast<std::uint32_t>(b[at + k]) << (8 * k);
+    }
+    std::int64_t value = raw;
+    if ((raw >> (bits - 1)) & 1u) {
+        value -= std::int64_t{1} << bits;
+    }
+    return static_cast<std::int32_t>(value);
+}
+
 bool hasTag(std::span<const std::uint8_t> b, std::size_t at, std::string_view tag) {
     if (at + 4 > b.size()) {
         return false;
@@ -64,29 +79,25 @@ WavFile parseWav(std::span<const std::uint8_t> bytes) {
             audio.channels = readU16(bytes, body + 2);
             audio.sampleRate = readU32(bytes, body + 4);
             audio.bitsPerSample = readU16(bytes, body + 14);
-            if (audio.channels == 0) {
-                throw WavError("WAV: zero channels");
+            if (audio.channels != 1 && audio.channels != 2) {
+                throw WavError("WAV: only mono and stereo are supported");
             }
-            if (audio.bitsPerSample != 16) {
-                throw WavError("WAV: only 16-bit samples are supported");
+            if (audio.bitsPerSample != 8 && audio.bitsPerSample != 16 && audio.bitsPerSample != 24) {
+                throw WavError("WAV: only 8-, 16- and 24-bit samples are supported");
             }
             haveFormat = true;
         } else if (hasTag(bytes, pos, "data")) {
             if (!haveFormat) {
                 throw WavError("WAV: data chunk before fmt chunk");
             }
-            const std::size_t frameBytes = 2u * audio.channels;
+            const std::size_t sampleBytes = audio.bitsPerSample / 8u;
+            const std::size_t frameBytes = sampleBytes * audio.channels;
             if (size % frameBytes != 0) {
                 throw WavError("WAV: data is not a whole number of frames");
             }
-            audio.samples.reserve(size / 2);
-            for (std::size_t i = 0; i < size; i += 2) {
-                const std::uint16_t raw = readU16(bytes, body + i);
-                std::int32_t value = raw;
-                if (raw & 0x8000u) {
-                    value -= 0x10000;
-                }
-                audio.samples.push_back(value);
+            audio.samples.reserve(size / sampleBytes);
+            for (std::size_t i = 0; i < size; i += sampleBytes) {
+                audio.samples.push_back(readSample(bytes, body + i, audio.bitsPerSample));
             }
             return audio;
         }

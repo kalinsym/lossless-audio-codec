@@ -43,3 +43,44 @@ TEST(Wav, RejectsFileWithoutRiffTag) {
     file[0] = 'X';
     EXPECT_THROW(lac::parseWav(file), lac::WavError);
 }
+
+TEST(Wav, Parses8BitAsUnsigned) {
+    Bytes file = minimalMono16();
+    file[32] = 0x01;
+    file[34] = 0x08;
+    file[44] = 0x80;
+    file[45] = 0x00;
+    file[46] = 0xFF;
+    file[47] = 0x7F;
+    const lac::WavFile audio = lac::parseWav(file);
+    EXPECT_EQ(audio.bitsPerSample, 8u);
+    EXPECT_EQ(audio.samples, (std::vector<std::int32_t>{0, -128, 127, -1}));
+}
+
+TEST(Wav, Parses24BitWithSignExtension) {
+    Bytes file = minimalMono16();
+    file[32] = 0x03;
+    file[34] = 0x18;
+    file[40] = 0x06;
+    file.resize(44);
+    const Bytes data{0x56, 0x34, 0x12, 0xFE, 0xFF, 0xFF};
+    file.insert(file.end(), data.begin(), data.end());
+    file[4] = 0x2A;
+    const lac::WavFile audio = lac::parseWav(file);
+    EXPECT_EQ(audio.bitsPerSample, 24u);
+    EXPECT_EQ(audio.samples, (std::vector<std::int32_t>{0x123456, -2}));
+}
+
+TEST(Wav, SkipsOddSizedUnknownChunk) {
+    Bytes file = minimalMono16();
+    const Bytes junk{'j', 'u', 'n', 'k', 0x03, 0x00, 0x00, 0x00, 1, 2, 3, 0};
+    file.insert(file.begin() + 36, junk.begin(), junk.end());
+    const lac::WavFile audio = lac::parseWav(file);
+    EXPECT_EQ(audio.samples, (std::vector<std::int32_t>{1000, -32768}));
+}
+
+TEST(Wav, RejectsThreeChannels) {
+    Bytes file = minimalMono16();
+    file[22] = 0x03;
+    EXPECT_THROW(lac::parseWav(file), lac::WavError);
+}
