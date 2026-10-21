@@ -84,3 +84,26 @@ TEST(Wav, RejectsThreeChannels) {
     file[22] = 0x03;
     EXPECT_THROW(lac::parseWav(file), lac::WavError);
 }
+
+TEST(Wav, SerializeReproducesTheOriginalFile) {
+    const Bytes file = minimalMono16();
+    EXPECT_EQ(lac::serializeWav(lac::parseWav(file)), file);
+}
+
+TEST(Wav, StereoTwentyFourBitSurvivesARoundTrip) {
+    lac::WavFile wav;
+    wav.channels = 2;
+    wav.sampleRate = 96000;
+    wav.bitsPerSample = 24;
+    wav.samples = {8388607, -8388608, 1, -1};
+    EXPECT_EQ(lac::parseWav(lac::serializeWav(wav)), wav);
+}
+
+TEST(Wav, SerializeRejectsSampleOutOfRange) {
+    lac::WavFile wav;
+    wav.channels = 1;
+    wav.sampleRate = 44100;
+    wav.bitsPerSample = 16;
+    wav.samples = {32768};
+    EXPECT_THROW(lac::serializeWav(wav), lac::WavError);
+}
