@@ -51,6 +51,37 @@ bool hasTag(std::span<const std::uint8_t> b, std::size_t at, std::string_view ta
     return true;
 }
 
+void putU16(std::vector<std::uint8_t>& out, std::uint32_t v) {
+    out.push_back(static_cast<std::uint8_t>(v & 0xFFu));
+    out.push_back(static_cast<std::uint8_t>((v >> 8) & 0xFFu));
+}
+
+void putU32(std::vector<std::uint8_t>& out, std::uint32_t v) {
+    putU16(out, v & 0xFFFFu);
+    putU16(out, v >> 16);
+}
+
+void putTag(std::vector<std::uint8_t>& out, std::string_view tag) {
+    for (char c : tag) {
+        out.push_back(static_cast<std::uint8_t>(c));
+    }
+}
+
+void writeSample(std::vector<std::uint8_t>& out, std::int32_t sample, unsigned bits) {
+    const std::int64_t limit = std::int64_t{1} << (bits - 1);
+    if (sample < -limit || sample >= limit) {
+        throw WavError("WAV: sample does not fit the bit depth");
+    }
+    if (bits == 8) {
+        out.push_back(static_cast<std::uint8_t>(sample + 128));
+        return;
+    }
+    const auto u = static_cast<std::uint32_t>(sample);
+    for (unsigned k = 0; k < bits / 8; ++k) {
+        out.push_back(static_cast<std::uint8_t>((u >> (8 * k)) & 0xFFu));
+    }
+}
+
 }
 
 WavFile parseWav(std::span<const std::uint8_t> bytes) {
@@ -108,8 +139,45 @@ WavFile parseWav(std::span<const std::uint8_t> bytes) {
     throw WavError("WAV: missing fmt or data chunk");
 }
 
-std::vector<std::uint8_t> serializeWav(const WavFile&) {
-    throw WavError("serializeWav: not implemented");
+std::vector<std::uint8_t> serializeWav(const WavFile& wav) {
+    if (wav.channels != 1 && wav.channels != 2) {
+        throw WavError("WAV: only mono and stereo are supported");
+    }
+    if (wav.bitsPerSample != 8 && wav.bitsPerSample != 16 && wav.bitsPerSample != 24) {
+        throw WavError("WAV: only 8-, 16- and 24-bit samples are supported");
+    }
+    if (wav.samples.size() % wav.channels != 0) {
+        throw WavError("WAV: samples are not a whole number of frames");
+    }
+
+    const std::uint32_t sampleBytes = wav.bitsPerSample / 8u;
+    const std::uint32_t blockAlign = sampleBytes * wav.channels;
+    const std::size_t dataSize = wav.samples.size() * sampleBytes;
+    if (dataSize > 0xFFFFFFFFu - 36u) {
+        throw WavError("WAV: too much audio for one file");
+    }
+
+    std::vector<std::uint8_t> out;
+    out.reserve(44 + dataSize);
+    putTag(out, "RIFF");
+    putU32(out, static_cast<std::uint32_t>(36 + dataSize));
+    putTag(out, "WAVE");
+
+    putTag(out, "fmt ");
+    putU32(out, 16);
+    putU16(out, 1);
+    putU16(out, wav.channels);
+    putU32(out, wav.sampleRate);
+    putU32(out, wav.sampleRate * blockAlign);
+    putU16(out, blockAlign);
+    putU16(out, wav.bitsPerSample);
+
+    putTag(out, "data");
+    putU32(out, static_cast<std::uint32_t>(dataSize));
+    for (std::int32_t sample : wav.samples) {
+        writeSample(out, sample, wav.bitsPerSample);
+    }
+    return out;
 }
 
 }
