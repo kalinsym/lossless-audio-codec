@@ -7,9 +7,9 @@ Author: Kalin Simeonov. Advisor: Prof. Vladimir Georgiev.
 
 ## Status
 
-The bit-level writer and reader and the WAV parser are implemented and covered by unit tests.
+The bit-level writer and reader and the WAV parser and writer are implemented and pass the specification test suite (45 tests).
 Supported input: PCM WAV, mono or stereo, 8, 16 or 24 bits per sample.
-Next: WAV writer, then the container format and the first encode/decode round trip.
+Next: CRC checksums, then the container format and the first encode/decode round trip.
 
 ## Building
 
@@ -39,7 +39,7 @@ The codec core uses only the C++ standard library. No third-party signal process
 ## Roadmap
 
 - [x] Bit-level stream writer and reader
-- [ ] WAV parser and writer
+- [x] WAV parser and writer
 - [ ] Round-trip test harness
 - [ ] Container format with verbatim frames
 - [ ] Fixed polynomial predictors (orders 0-4)
