@@ -12,11 +12,6 @@ public:
     explicit BitReader(std::span<const std::uint8_t> data);
 
     std::uint32_t readBits(unsigned width);
-    std::uint32_t readUnary();
-    std::int32_t readSigned(unsigned width);
-    void alignToByte();
-    // Exact byte offset only after alignToByte().
-    std::size_t bytePosition() const;
     bool atEnd() const;
 
 private:

@@ -25,33 +25,6 @@ std::uint32_t BitReader::readBits(unsigned width) {
     return static_cast<std::uint32_t>((acc_ >> count_) & mask);
 }
 
-std::uint32_t BitReader::readUnary() {
-    std::uint32_t count = 0;
-    while (readBits(1) == 0) {
-        ++count;
-    }
-    return count;
-}
-
-std::int32_t BitReader::readSigned(unsigned width) {
-    if (width == 0) {
-        return 0;
-    }
-    std::int64_t u = readBits(width);
-    if ((u >> (width - 1)) & 1) {
-        u -= std::int64_t{1} << width;
-    }
-    return static_cast<std::int32_t>(u);
-}
-
-void BitReader::alignToByte() {
-    count_ = 0;
-}
-
-std::size_t BitReader::bytePosition() const {
-    return next_;
-}
-
 bool BitReader::atEnd() const {
     return count_ == 0 && next_ == data_.size();
 }
