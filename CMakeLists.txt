@@ -13,7 +13,8 @@ target_compile_options(lac_warnings INTERFACE
 add_library(lac
   src/bit_reader.cpp
   src/bit_writer.cpp
-  src/wav.cpp)
+  src/wav.cpp
+  src/crc.cpp)
 target_include_directories(lac PUBLIC include)
 target_link_libraries(lac PRIVATE lac_warnings)
 
