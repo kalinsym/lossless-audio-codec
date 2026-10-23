@@ -30,6 +30,7 @@ include(GoogleTest)
 add_executable(lac_tests
   tests/bit_io_test.cpp
   tests/wav_test.cpp
-  tests/wav_spec_test.cpp)
+  tests/wav_spec_test.cpp
+  tests/crc_test.cpp)
 target_link_libraries(lac_tests PRIVATE lac lac_warnings GTest::gtest_main)
 gtest_discover_tests(lac_tests DISCOVERY_TIMEOUT 30)
