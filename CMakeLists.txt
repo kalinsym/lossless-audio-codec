@@ -14,7 +14,8 @@ add_library(lac
   src/bit_reader.cpp
   src/bit_writer.cpp
   src/wav.cpp
-  src/crc.cpp)
+  src/crc.cpp
+  src/encoder.cpp)
 target_include_directories(lac PUBLIC include)
 target_link_libraries(lac PRIVATE lac_warnings)
 
