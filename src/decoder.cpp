@@ -23,6 +23,15 @@ StreamInfo readStreamHeader(BitReader& r, std::span<const std::uint8_t> bytes) {
     if (r.readBits(8) != crc8(bytes.subspan(0, 16))) {
         throw FormatError("decode: stream header CRC mismatch");
     }
+    if (info.channels < 1 || info.channels > 2) {
+        throw FormatError("decode: unsupported channel count");
+    }
+    if (info.bitsPerSample != 8 && info.bitsPerSample != 16 && info.bitsPerSample != 24) {
+        throw FormatError("decode: unsupported sample size");
+    }
+    if (info.blockSize == 0) {
+        throw FormatError("decode: block size is zero");
+    }
     return info;
 }
 
