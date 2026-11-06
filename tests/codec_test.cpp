@@ -47,3 +47,18 @@ TEST(Codec, RoundTripsEveryFormat) {
         EXPECT_EQ(lac::decode(lac::encode(wav, 2)), wav);
     }
 }
+
+TEST(Codec, DetectsEverySingleBitFlip) {
+    const std::vector<std::uint8_t> good = lac::encode(stereo16(50), 16);
+    for (std::size_t i = 0; i < good.size() * 8; ++i) {
+        std::vector<std::uint8_t> bad = good;
+        bad[i / 8] ^= static_cast<std::uint8_t>(1u << (i % 8));
+        EXPECT_THROW(lac::decode(bad), lac::FormatError) << "bit " << i;
+    }
+}
+
+TEST(Codec, RejectsTruncatedFile) {
+    std::vector<std::uint8_t> out = lac::encode(stereo16(100), 32);
+    out.pop_back();
+    EXPECT_THROW(lac::decode(out), lac::FormatError);
+}
