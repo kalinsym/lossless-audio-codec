@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "lac/decoder.hpp"
 #include "lac/encoder.hpp"
 #include "lac/wav.hpp"
 
@@ -31,12 +32,19 @@ void writeFile(const std::string& path, const std::vector<std::uint8_t>& bytes) 
 }
 
 int main(int argc, char* argv[]) {
-    if (argc != 4 || std::string(argv[1]) != "encode") {
-        std::cerr << "usage: lac encode <in.wav> <out.lac>\n";
+    const std::string mode = argc == 4 ? argv[1] : "";
+    if (mode != "encode" && mode != "decode") {
+        std::cerr << "usage: lac encode <in.wav> <out.lac>\n"
+                     "       lac decode <in.lac> <out.wav>\n";
         return 2;
     }
     try {
-        writeFile(argv[3], lac::encode(lac::parseWav(readFile(argv[2]))));
+        const std::vector<std::uint8_t> in = readFile(argv[2]);
+        if (mode == "encode") {
+            writeFile(argv[3], lac::encode(lac::parseWav(in)));
+        } else {
+            writeFile(argv[3], lac::serializeWav(lac::decode(in)));
+        }
     } catch (const std::exception& e) {
         std::cerr << "lac: " << e.what() << "\n";
         return 1;
