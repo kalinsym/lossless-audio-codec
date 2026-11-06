@@ -35,3 +35,15 @@ TEST(Codec, RoundTripsAcrossSeveralBlocks) {
     const lac::WavFile wav = stereo16(10000);
     EXPECT_EQ(lac::decode(lac::encode(wav, 4096)), wav);
 }
+
+TEST(Codec, RoundTripsEveryFormat) {
+    for (unsigned bits : {8u, 16u, 24u}) {
+        lac::WavFile wav;
+        wav.channels = 1;
+        wav.sampleRate = 8000;
+        wav.bitsPerSample = static_cast<std::uint16_t>(bits);
+        const std::int32_t lim = (1 << (bits - 1)) - 1;
+        wav.samples = {0, lim, -lim - 1, 1, -1};
+        EXPECT_EQ(lac::decode(lac::encode(wav, 2)), wav);
+    }
+}
