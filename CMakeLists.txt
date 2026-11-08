@@ -16,7 +16,8 @@ add_library(lac
   src/wav.cpp
   src/crc.cpp
   src/encoder.cpp
-  src/decoder.cpp)
+  src/decoder.cpp
+  src/predictor.cpp)
 target_include_directories(lac PUBLIC include)
 target_link_libraries(lac PRIVATE lac_warnings)
 
