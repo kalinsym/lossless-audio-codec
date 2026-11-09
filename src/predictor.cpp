@@ -1,6 +1,7 @@
 #include "lac/predictor.hpp"
 
 #include <cstddef>
+#include <stdexcept>
 
 namespace lac {
 
@@ -17,6 +18,9 @@ constexpr std::int64_t kFixedCoefficients[kMaxFixedOrder + 1][kMaxFixedOrder] = 
 }
 
 std::vector<std::int32_t> fixedResidual(std::span<const std::int32_t> samples, unsigned order) {
+    if (order > kMaxFixedOrder) {
+        throw std::invalid_argument("fixedResidual: order must be between 0 and 4");
+    }
     std::vector<std::int32_t> residual;
     for (std::size_t i = order; i < samples.size(); ++i) {
         std::int64_t prediction = 0;

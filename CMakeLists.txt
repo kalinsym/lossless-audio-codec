@@ -39,6 +39,7 @@ add_executable(lac_tests
   tests/wav_test.cpp
   tests/wav_spec_test.cpp
   tests/crc_test.cpp
-  tests/codec_test.cpp)
+  tests/codec_test.cpp
+  tests/predictor_test.cpp)
 target_link_libraries(lac_tests PRIVATE lac lac_warnings GTest::gtest_main)
 gtest_discover_tests(lac_tests DISCOVERY_TIMEOUT 30)
