@@ -10,6 +10,8 @@ namespace lac {
 inline constexpr unsigned kMaxFixedOrder = 4;
 
 std::vector<std::int32_t> fixedResidual(std::span<const std::int32_t> samples, unsigned order);
+std::vector<std::int32_t> fixedRestore(std::span<const std::int32_t> warmup,
+                                       std::span<const std::int32_t> residual);
 
 }
 

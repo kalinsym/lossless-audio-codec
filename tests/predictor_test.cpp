@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <stdexcept>
 #include <vector>
@@ -32,4 +33,20 @@ TEST(FixedPredictor, ExtremeTwentyFourBitSamples) {
 
 TEST(FixedPredictor, RejectsOrderAboveFour) {
     EXPECT_THROW(lac::fixedResidual(Samples{1, 2, 3, 4, 5, 6}, 5), std::invalid_argument);
+}
+
+TEST(FixedPredictor, RestoresSquaresFromResiduals) {
+    EXPECT_EQ(lac::fixedRestore(Samples{1, 4}, Samples{2, 2, 2, 2}), (Samples{1, 4, 9, 16, 25, 36}));
+}
+
+TEST(FixedPredictor, RestoreUndoesResidualForEveryOrder) {
+    const Samples x = {8388607, -8388608, 0, 5, -3, 8388607, -8388608, 100, -100, 7};
+    for (unsigned order = 0; order <= lac::kMaxFixedOrder; ++order) {
+        const Samples warmup(x.begin(), x.begin() + static_cast<std::ptrdiff_t>(order));
+        EXPECT_EQ(lac::fixedRestore(warmup, lac::fixedResidual(x, order)), x) << "order " << order;
+    }
+}
+
+TEST(FixedPredictor, RestoreRejectsTooManyWarmUpSamples) {
+    EXPECT_THROW(lac::fixedRestore(Samples{1, 2, 3, 4, 5}, Samples{}), std::invalid_argument);
 }
