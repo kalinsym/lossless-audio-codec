@@ -2,9 +2,12 @@
 
 #include <cstddef>
 #include <stdexcept>
+#include <vector>
 
 #include "lac/bit_reader.hpp"
 #include "lac/crc.hpp"
+#include "lac/predictor.hpp"
+#include "lac/rice.hpp"
 
 namespace lac {
 
@@ -35,6 +38,33 @@ StreamInfo readStreamHeader(BitReader& r, std::span<const std::uint8_t> bytes) {
     return info;
 }
 
+std::vector<std::int32_t> readSubframe(BitReader& r, const StreamInfo& info, std::size_t frames) {
+    const std::uint32_t type = r.readBits(8);
+    std::vector<std::int32_t> samples;
+    if (type == kSubframeVerbatim) {
+        for (std::size_t f = 0; f < frames; ++f) {
+            samples.push_back(r.readSigned(info.bitsPerSample));
+        }
+        return samples;
+    }
+    if (type != kSubframeFixed) {
+        throw FormatError("decode: unknown subframe type");
+    }
+    const unsigned order = r.readBits(3);
+    const unsigned k = r.readBits(5);
+    if (order > kMaxFixedOrder || order > frames || k > kMaxRiceParameter) {
+        throw FormatError("decode: invalid fixed subframe");
+    }
+    for (unsigned i = 0; i < order; ++i) {
+        samples.push_back(r.readSigned(info.bitsPerSample));
+    }
+    std::vector<std::int32_t> residual;
+    for (std::size_t f = order; f < frames; ++f) {
+        residual.push_back(readRice(r, k));
+    }
+    return fixedRestore(samples, residual);
+}
+
 void readFrame(BitReader& r, std::span<const std::uint8_t> bytes, const StreamInfo& info,
                std::uint32_t index, std::size_t expected, WavFile& out) {
     const std::size_t start = r.bytePosition();
@@ -51,11 +81,9 @@ void readFrame(BitReader& r, std::span<const std::uint8_t> bytes, const StreamIn
     const std::size_t base = out.samples.size();
     out.samples.resize(base + frames * info.channels);
     for (unsigned ch = 0; ch < info.channels; ++ch) {
-        if (r.readBits(8) != kSubframeVerbatim) {
-            throw FormatError("decode: unknown subframe type");
-        }
+        const std::vector<std::int32_t> samples = readSubframe(r, info, frames);
         for (std::size_t f = 0; f < frames; ++f) {
-            out.samples[base + f * info.channels + ch] = r.readSigned(info.bitsPerSample);
+            out.samples[base + f * info.channels + ch] = samples[f];
         }
     }
     r.alignToByte();

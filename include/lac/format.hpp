@@ -10,6 +10,7 @@ inline constexpr std::uint32_t kMagic = 0x4C414331;
 inline constexpr std::uint16_t kFrameSync = 0xFFF8;
 inline constexpr unsigned kDefaultBlockSize = 4096;
 inline constexpr std::uint8_t kSubframeVerbatim = 0;
+inline constexpr std::uint8_t kSubframeFixed = 1;
 
 struct StreamInfo {
     std::uint32_t sampleRate = 0;
