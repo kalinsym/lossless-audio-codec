@@ -55,3 +55,15 @@ TEST(Rice, RejectsParameterAboveThirty) {
     lac::BitWriter w;
     EXPECT_THROW(lac::writeRice(w, 0, 31), std::invalid_argument);
 }
+
+TEST(Rice, CountsBitsPerParameter) {
+    const std::vector<std::int32_t> residual = {3, -1};
+    EXPECT_EQ(lac::riceBits(residual, 0), 9u);
+    EXPECT_EQ(lac::riceBits(residual, 2), 7u);
+}
+
+TEST(Rice, BestParameterGrowsWithTheResiduals) {
+    EXPECT_EQ(lac::bestRiceParameter(std::vector<std::int32_t>{}), 0u);
+    EXPECT_EQ(lac::bestRiceParameter(std::vector<std::int32_t>{0, 0, 1, -1, 0}), 0u);
+    EXPECT_EQ(lac::bestRiceParameter(std::vector<std::int32_t>{1000, -1000, 999, -999}), 10u);
+}

@@ -2,6 +2,7 @@
 #define LAC_RICE_HPP
 
 #include <cstdint>
+#include <span>
 
 #include "lac/bit_reader.hpp"
 #include "lac/bit_writer.hpp"
@@ -20,6 +21,8 @@ constexpr std::int32_t unzigzag(std::uint32_t value) {
 
 void writeRice(BitWriter& w, std::int32_t value, unsigned k);
 std::int32_t readRice(BitReader& r, unsigned k);
+std::uint64_t riceBits(std::span<const std::int32_t> residual, unsigned k);
+unsigned bestRiceParameter(std::span<const std::int32_t> residual);
 
 }
 

@@ -18,4 +18,25 @@ std::int32_t readRice(BitReader& r, unsigned k) {
     return unzigzag((q << k) | r.readBits(k));
 }
 
+std::uint64_t riceBits(std::span<const std::int32_t> residual, unsigned k) {
+    std::uint64_t bits = 0;
+    for (const std::int32_t r : residual) {
+        bits += (zigzag(r) >> k) + 1 + k;
+    }
+    return bits;
+}
+
+unsigned bestRiceParameter(std::span<const std::int32_t> residual) {
+    unsigned best = 0;
+    std::uint64_t bestBits = riceBits(residual, 0);
+    for (unsigned k = 1; k <= kMaxRiceParameter; ++k) {
+        const std::uint64_t bits = riceBits(residual, k);
+        if (bits < bestBits) {
+            best = k;
+            bestBits = bits;
+        }
+    }
+    return best;
+}
+
 }
