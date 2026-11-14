@@ -2,9 +2,12 @@
 
 #include <cstddef>
 #include <span>
+#include <vector>
 
 #include "lac/bit_writer.hpp"
 #include "lac/crc.hpp"
+#include "lac/predictor.hpp"
+#include "lac/rice.hpp"
 
 namespace lac {
 
@@ -24,6 +27,40 @@ std::span<const std::uint8_t> bytesFrom(const BitWriter& w, std::size_t start) {
     return std::span<const std::uint8_t>(w.bytes()).subspan(start);
 }
 
+void writeSubframe(BitWriter& w, std::span<const std::int32_t> x, unsigned bitsPerSample) {
+    bool verbatim = true;
+    unsigned bestOrder = 0;
+    unsigned bestK = 0;
+    std::uint64_t bestBits = std::uint64_t{bitsPerSample} * x.size();
+    for (unsigned order = 0; order <= kMaxFixedOrder && order <= x.size(); ++order) {
+        const std::vector<std::int32_t> residual = fixedResidual(x, order);
+        const unsigned k = bestRiceParameter(residual);
+        const std::uint64_t bits = 8 + std::uint64_t{order} * bitsPerSample + riceBits(residual, k);
+        if (bits < bestBits) {
+            verbatim = false;
+            bestOrder = order;
+            bestK = k;
+            bestBits = bits;
+        }
+    }
+    if (verbatim) {
+        w.writeBits(kSubframeVerbatim, 8);
+        for (const std::int32_t sample : x) {
+            w.writeSigned(sample, bitsPerSample);
+        }
+        return;
+    }
+    w.writeBits(kSubframeFixed, 8);
+    w.writeBits(bestOrder, 3);
+    w.writeBits(bestK, 5);
+    for (unsigned i = 0; i < bestOrder; ++i) {
+        w.writeSigned(x[i], bitsPerSample);
+    }
+    for (const std::int32_t r : fixedResidual(x, bestOrder)) {
+        writeRice(w, r, bestK);
+    }
+}
+
 void writeFrame(BitWriter& w, const WavFile& wav, std::size_t firstFrame,
                 std::size_t frames, std::uint32_t index) {
     const std::size_t start = w.bytes().size();
@@ -32,10 +69,11 @@ void writeFrame(BitWriter& w, const WavFile& wav, std::size_t firstFrame,
     w.writeBits(static_cast<std::uint32_t>(frames), 16);
     w.writeBits(crc8(bytesFrom(w, start)), 8);
     for (unsigned ch = 0; ch < wav.channels; ++ch) {
-        w.writeBits(kSubframeVerbatim, 8);
+        std::vector<std::int32_t> channel(frames);
         for (std::size_t f = 0; f < frames; ++f) {
-            w.writeSigned(wav.samples[(firstFrame + f) * wav.channels + ch], wav.bitsPerSample);
+            channel[f] = wav.samples[(firstFrame + f) * wav.channels + ch];
         }
+        writeSubframe(w, channel, wav.bitsPerSample);
     }
     w.flush();
     w.writeBits(crc16(bytesFrom(w, start)), 16);
