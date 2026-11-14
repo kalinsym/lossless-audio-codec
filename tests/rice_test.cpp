@@ -2,6 +2,8 @@
 
 #include <cstdint>
 #include <limits>
+#include <stdexcept>
+#include <vector>
 
 #include "lac/rice.hpp"
 
@@ -24,4 +26,32 @@ TEST(ZigZag, UnzigzagUndoesZigzag) {
     for (const std::int32_t v : {0, 1, -1, 2, -2, 134217720, -134217720, Limits::max(), Limits::min()}) {
         EXPECT_EQ(lac::unzigzag(lac::zigzag(v)), v);
     }
+}
+
+TEST(Rice, WritesQuotientInUnaryAndRemainderInKBits) {
+    lac::BitWriter w;
+    lac::writeRice(w, 3, 2);
+    lac::writeRice(w, -1, 0);
+    w.flush();
+    EXPECT_EQ(w.bytes(), (std::vector<std::uint8_t>{0x64}));
+}
+
+TEST(Rice, ReadsBackWhatWasWritten) {
+    const std::vector<std::int32_t> values = {0, 1, -1, 7, -8, 100, -100, 1000, -1000};
+    for (const unsigned k : {0u, 1u, 4u, 9u, 30u}) {
+        lac::BitWriter w;
+        for (const std::int32_t v : values) {
+            lac::writeRice(w, v, k);
+        }
+        w.flush();
+        lac::BitReader r(w.bytes());
+        for (const std::int32_t v : values) {
+            EXPECT_EQ(lac::readRice(r, k), v) << "k " << k;
+        }
+    }
+}
+
+TEST(Rice, RejectsParameterAboveThirty) {
+    lac::BitWriter w;
+    EXPECT_THROW(lac::writeRice(w, 0, 31), std::invalid_argument);
 }
