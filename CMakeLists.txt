@@ -17,7 +17,8 @@ add_library(lac
   src/crc.cpp
   src/encoder.cpp
   src/decoder.cpp
-  src/predictor.cpp)
+  src/predictor.cpp
+  src/rice.cpp)
 target_include_directories(lac PUBLIC include)
 target_link_libraries(lac PRIVATE lac_warnings)
 
