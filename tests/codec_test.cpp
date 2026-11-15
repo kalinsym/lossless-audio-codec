@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <cstdint>
+#include <random>
 #include <vector>
 
 #include "lac/decoder.hpp"
@@ -17,6 +19,15 @@ lac::WavFile stereo16(std::size_t frames) {
         wav.samples.push_back(static_cast<std::int32_t>(i * 37 % 65536) - 32768);
         wav.samples.push_back(-static_cast<std::int32_t>(i % 1000));
     }
+    return wav;
+}
+
+lac::WavFile mono16(std::size_t frames) {
+    lac::WavFile wav;
+    wav.channels = 1;
+    wav.sampleRate = 44100;
+    wav.bitsPerSample = 16;
+    wav.samples.resize(frames);
     return wav;
 }
 
@@ -61,4 +72,25 @@ TEST(Codec, RejectsTruncatedFile) {
     std::vector<std::uint8_t> out = lac::encode(stereo16(100), 32);
     out.pop_back();
     EXPECT_THROW(lac::decode(out), lac::FormatError);
+}
+
+TEST(Codec, CompressesSmoothAudio) {
+    lac::WavFile wav = mono16(44100);
+    for (std::size_t i = 0; i < wav.samples.size(); ++i) {
+        wav.samples[i] = static_cast<std::int32_t>(10000 * std::sin(static_cast<double>(i) / 20));
+    }
+    const std::vector<std::uint8_t> out = lac::encode(wav);
+    EXPECT_LT(out.size(), wav.samples.size() * 2 / 4);
+    EXPECT_EQ(lac::decode(out), wav);
+}
+
+TEST(Codec, NoiseFallsBackToVerbatim) {
+    lac::WavFile wav = mono16(44100);
+    std::mt19937 rng(42);
+    for (std::int32_t& sample : wav.samples) {
+        sample = static_cast<std::int32_t>(rng() % 65536) - 32768;
+    }
+    const std::vector<std::uint8_t> out = lac::encode(wav);
+    EXPECT_LE(out.size(), wav.samples.size() * 2 + 200);
+    EXPECT_EQ(lac::decode(out), wav);
 }
