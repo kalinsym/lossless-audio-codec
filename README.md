@@ -7,11 +7,10 @@ Author: Kalin Simeonov. Advisor: Prof. Vladimir Georgiev.
 
 ## Status
 
-Version 0.1: the first full round trip. The bit-level writer and reader, the WAV parser and writer, CRC-8 and CRC-16, and the container format with its encoder, decoder and command-line tool are implemented (56 tests).
+Version 0.2: the first real compression. Each block of each channel is coded with the best of the fixed polynomial predictors (orders 0 to 4) and Rice coding of the residuals, or stored verbatim when prediction does not help (74 tests).
 A WAV file encoded and decoded again is identical bit for bit, and every single-bit error in an encoded file is detected.
-Frames are stored verbatim for now, so encoded files are slightly larger than the input.
 Supported input: PCM WAV, mono or stereo, 8, 16 or 24 bits per sample.
-Next: fixed predictors and Rice coding, the first real compression.
+Next: mid/side stereo and the first benchmark against reference FLAC.
 
 ## Building
 
@@ -52,8 +51,8 @@ The codec core uses only the C++ standard library. No third-party signal process
 - [x] WAV parser and writer
 - [x] Round-trip test harness
 - [x] Container format with verbatim frames
-- [ ] Fixed polynomial predictors (orders 0-4)
-- [ ] Rice coding with adaptive parameter selection
+- [x] Fixed polynomial predictors (orders 0-4)
+- [x] Rice coding with adaptive parameter selection
 - [ ] Mid/side stereo decorrelation
 - [ ] LPC via Levinson-Durbin
 - [ ] Per-block strategy search
