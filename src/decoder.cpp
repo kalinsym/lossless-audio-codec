@@ -8,6 +8,7 @@
 #include "lac/crc.hpp"
 #include "lac/predictor.hpp"
 #include "lac/rice.hpp"
+#include "lac/stereo.hpp"
 
 namespace lac {
 
@@ -38,12 +39,12 @@ StreamInfo readStreamHeader(BitReader& r, std::span<const std::uint8_t> bytes) {
     return info;
 }
 
-std::vector<std::int32_t> readSubframe(BitReader& r, const StreamInfo& info, std::size_t frames) {
+std::vector<std::int32_t> readSubframe(BitReader& r, unsigned bitsPerSample, std::size_t frames) {
     const std::uint32_t type = r.readBits(8);
     std::vector<std::int32_t> samples;
     if (type == kSubframeVerbatim) {
         for (std::size_t f = 0; f < frames; ++f) {
-            samples.push_back(r.readSigned(info.bitsPerSample));
+            samples.push_back(r.readSigned(bitsPerSample));
         }
         return samples;
     }
@@ -56,13 +57,26 @@ std::vector<std::int32_t> readSubframe(BitReader& r, const StreamInfo& info, std
         throw FormatError("decode: invalid fixed subframe");
     }
     for (unsigned i = 0; i < order; ++i) {
-        samples.push_back(r.readSigned(info.bitsPerSample));
+        samples.push_back(r.readSigned(bitsPerSample));
     }
     std::vector<std::int32_t> residual;
     for (std::size_t f = order; f < frames; ++f) {
         residual.push_back(readRice(r, k));
     }
     return fixedRestore(samples, residual);
+}
+
+void undoStereo(std::uint32_t mode, std::vector<std::int32_t>& a, std::vector<std::int32_t>& b) {
+    for (std::size_t f = 0; f < a.size(); ++f) {
+        if (mode == kChannelLeftSide) {
+            b[f] = a[f] - b[f];
+        } else if (mode == kChannelRightSide) {
+            a[f] = a[f] + b[f];
+        } else if (mode == kChannelMidSide) {
+            a[f] = leftOf(a[f], b[f]);
+            b[f] = a[f] - b[f];
+        }
+    }
 }
 
 void readFrame(BitReader& r, std::span<const std::uint8_t> bytes, const StreamInfo& info,
@@ -72,7 +86,8 @@ void readFrame(BitReader& r, std::span<const std::uint8_t> bytes, const StreamIn
         throw FormatError("decode: frame header is damaged");
     }
     const std::size_t frames = r.readBits(16);
-    if (r.readBits(8) != crc8(bytes.subspan(start, 8))) {
+    const std::uint32_t mode = r.readBits(8);
+    if (r.readBits(8) != crc8(bytes.subspan(start, 9))) {
         throw FormatError("decode: frame header CRC mismatch");
     }
     if (frames != expected) {
@@ -80,10 +95,20 @@ void readFrame(BitReader& r, std::span<const std::uint8_t> bytes, const StreamIn
     }
     const std::size_t base = out.samples.size();
     out.samples.resize(base + frames * info.channels);
+    if (mode > kChannelMidSide || (mode != kChannelIndependent && info.channels != 2)) {
+        throw FormatError("decode: invalid channel mode");
+    }
+    std::vector<std::vector<std::int32_t>> channels;
     for (unsigned ch = 0; ch < info.channels; ++ch) {
-        const std::vector<std::int32_t> samples = readSubframe(r, info, frames);
+        const unsigned bits = info.bitsPerSample + (isSideChannel(mode, ch) ? 1u : 0u);
+        channels.push_back(readSubframe(r, bits, frames));
+    }
+    if (info.channels == 2) {
+        undoStereo(mode, channels[0], channels[1]);
+    }
+    for (unsigned ch = 0; ch < info.channels; ++ch) {
         for (std::size_t f = 0; f < frames; ++f) {
-            out.samples[base + f * info.channels + ch] = samples[f];
+            out.samples[base + f * info.channels + ch] = channels[ch][f];
         }
     }
     r.alignToByte();

@@ -67,6 +67,7 @@ void writeFrame(BitWriter& w, const WavFile& wav, std::size_t firstFrame,
     w.writeBits(kFrameSync, 16);
     w.writeBits(index, 32);
     w.writeBits(static_cast<std::uint32_t>(frames), 16);
+    w.writeBits(kChannelIndependent, 8);
     w.writeBits(crc8(bytesFrom(w, start)), 8);
     for (unsigned ch = 0; ch < wav.channels; ++ch) {
         std::vector<std::int32_t> channel(frames);
