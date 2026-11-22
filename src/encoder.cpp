@@ -8,6 +8,7 @@
 #include "lac/crc.hpp"
 #include "lac/predictor.hpp"
 #include "lac/rice.hpp"
+#include "lac/stereo.hpp"
 
 namespace lac {
 
@@ -61,20 +62,59 @@ void writeSubframe(BitWriter& w, std::span<const std::int32_t> x, unsigned bitsP
     }
 }
 
+std::uint64_t subframeBits(std::span<const std::int32_t> x, unsigned bitsPerSample) {
+    BitWriter scratch;
+    writeSubframe(scratch, x, bitsPerSample);
+    return scratch.bitCount();
+}
+
+std::uint32_t chooseStereo(std::vector<std::int32_t>& a, std::vector<std::int32_t>& b, unsigned bits) {
+    std::vector<std::int32_t> mid(a.size());
+    std::vector<std::int32_t> side(a.size());
+    for (std::size_t f = 0; f < a.size(); ++f) {
+        mid[f] = midOf(a[f], b[f]);
+        side[f] = sideOf(a[f], b[f]);
+    }
+    const std::uint64_t l = subframeBits(a, bits);
+    const std::uint64_t r = subframeBits(b, bits);
+    const std::uint64_t s = subframeBits(side, bits + 1);
+    const std::uint64_t cost[] = {l + r, l + s, s + r, subframeBits(mid, bits) + s};
+    std::uint32_t mode = kChannelIndependent;
+    for (std::uint32_t m = 1; m <= kChannelMidSide; ++m) {
+        if (cost[m] < cost[mode]) {
+            mode = m;
+        }
+    }
+    if (mode == kChannelMidSide) {
+        a = mid;
+    }
+    if (isSideChannel(mode, 0)) {
+        a = side;
+    }
+    if (isSideChannel(mode, 1)) {
+        b = side;
+    }
+    return mode;
+}
+
 void writeFrame(BitWriter& w, const WavFile& wav, std::size_t firstFrame,
                 std::size_t frames, std::uint32_t index) {
     const std::size_t start = w.bytes().size();
     w.writeBits(kFrameSync, 16);
     w.writeBits(index, 32);
     w.writeBits(static_cast<std::uint32_t>(frames), 16);
-    w.writeBits(kChannelIndependent, 8);
+    std::vector<std::vector<std::int32_t>> channels(wav.channels, std::vector<std::int32_t>(frames));
+    for (unsigned ch = 0; ch < wav.channels; ++ch) {
+        for (std::size_t f = 0; f < frames; ++f) {
+            channels[ch][f] = wav.samples[(firstFrame + f) * wav.channels + ch];
+        }
+    }
+    const std::uint32_t mode =
+        wav.channels == 2 ? chooseStereo(channels[0], channels[1], wav.bitsPerSample) : kChannelIndependent;
+    w.writeBits(mode, 8);
     w.writeBits(crc8(bytesFrom(w, start)), 8);
     for (unsigned ch = 0; ch < wav.channels; ++ch) {
-        std::vector<std::int32_t> channel(frames);
-        for (std::size_t f = 0; f < frames; ++f) {
-            channel[f] = wav.samples[(firstFrame + f) * wav.channels + ch];
-        }
-        writeSubframe(w, channel, wav.bitsPerSample);
+        writeSubframe(w, channels[ch], wav.bitsPerSample + (isSideChannel(mode, ch) ? 1u : 0u));
     }
     w.flush();
     w.writeBits(crc16(bytesFrom(w, start)), 16);
