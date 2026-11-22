@@ -94,3 +94,28 @@ TEST(Codec, NoiseFallsBackToVerbatim) {
     EXPECT_LE(out.size(), wav.samples.size() * 2 + 200);
     EXPECT_EQ(lac::decode(out), wav);
 }
+
+TEST(Codec, CorrelatedStereoUsesMidSide) {
+    lac::WavFile wav = stereo16(0);
+    std::mt19937 rng(7);
+    for (std::size_t i = 0; i < 4096; ++i) {
+        const auto common = static_cast<std::int32_t>(10000 * std::sin(static_cast<double>(i) / 30));
+        wav.samples.push_back(common + static_cast<std::int32_t>(rng() % 64));
+        wav.samples.push_back(common + static_cast<std::int32_t>(rng() % 64));
+    }
+    const std::vector<std::uint8_t> out = lac::encode(wav);
+    EXPECT_EQ(out[17 + 8], lac::kChannelMidSide);
+    EXPECT_EQ(lac::decode(out), wav);
+}
+
+TEST(Codec, StereoSideFitsAtTwentyFourBitExtremes) {
+    lac::WavFile wav = stereo16(0);
+    wav.bitsPerSample = 24;
+    for (int i = 0; i < 100; ++i) {
+        wav.samples.push_back(i % 2 == 0 ? 8388607 : -8388608);
+        wav.samples.push_back(i % 2 == 0 ? -8388608 : 8388607);
+    }
+    const std::vector<std::uint8_t> out = lac::encode(wav, 16);
+    EXPECT_EQ(out[17 + 8], lac::kChannelMidSide);
+    EXPECT_EQ(lac::decode(out), wav);
+}
