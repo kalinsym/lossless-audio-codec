@@ -7,10 +7,10 @@ Author: Kalin Simeonov. Advisor: Prof. Vladimir Georgiev.
 
 ## Status
 
-Version 0.3: each block of each channel is coded with the best of the fixed polynomial predictors (orders 0 to 4) and Rice coding of the residuals, or stored verbatim when prediction does not help. Stereo frames are coded as left/right, left/side, right/side or mid/side, whichever is smallest (78 tests).
+Version 0.4: each block of each channel is coded with the smallest of verbatim samples, the fixed polynomial predictors (orders 0 to 4) and linear prediction (LPC, orders 1 to 12, coefficients from the Levinson-Durbin recursion quantized to 15 bits), with Rice coding of the residuals. Stereo frames are coded as left/right, left/side, right/side or mid/side, whichever is smallest (87 tests).
 A WAV file encoded and decoded again is identical bit for bit, and every single-bit error in an encoded file is detected.
 Supported input: PCM WAV, mono or stereo, 8, 16 or 24 bits per sample.
-Next: linear prediction (LPC) to close the gap to FLAC.
+Next: a faster encoder search and hardening.
 
 ## Building
 
@@ -35,20 +35,20 @@ Eleven tracks of the EBU SQAM test set (EBU Tech 3253), 16-bit, 44.1 kHz stereo,
 
 | Track | lac | flac -5 | flac -8 |
 |---|---|---|---|
-| 27 Castanets | 43.19% | 37.21% | 34.54% |
-| 35 Glockenspiel | 33.66% | 23.32% | 21.80% |
-| 40 Harpsichord | 37.96% | 34.40% | 34.05% |
-| 48 Vocal quartet | 39.75% | 36.84% | 36.44% |
-| 50 Male speech, English | 33.51% | 29.70% | 29.30% |
-| 58 Guitar | 34.16% | 30.01% | 29.59% |
-| 60 Piano | 23.17% | 21.56% | 21.42% |
-| 64 Choir | 52.99% | 49.23% | 49.05% |
-| 65 Orchestra | 38.84% | 36.40% | 36.32% |
-| 69 Pop (ABBA) | 45.57% | 41.12% | 40.60% |
-| 70 Pop (Eddie Rabbitt) | 40.54% | 35.96% | 35.52% |
-| All files | 36.43% | 32.46% | 31.96% |
+| 27 Castanets | 39.29% | 37.21% | 34.54% |
+| 35 Glockenspiel | 25.95% | 23.32% | 21.80% |
+| 40 Harpsichord | 36.25% | 34.40% | 34.05% |
+| 48 Vocal quartet | 38.90% | 36.84% | 36.44% |
+| 50 Male speech, English | 32.12% | 29.70% | 29.30% |
+| 58 Guitar | 33.13% | 30.01% | 29.59% |
+| 60 Piano | 22.85% | 21.56% | 21.42% |
+| 64 Choir | 51.23% | 49.23% | 49.05% |
+| 65 Orchestra | 37.82% | 36.40% | 36.32% |
+| 69 Pop (ABBA) | 43.71% | 41.12% | 40.60% |
+| 70 Pop (Eddie Rabbitt) | 38.87% | 35.96% | 35.52% |
+| All files | 34.39% | 32.46% | 31.96% |
 
-Every track decodes bit for bit. lac is about 4 percentage points behind FLAC overall, most on tonal material such as the glockenspiel, where FLAC's linear prediction fits better than fixed polynomials. Encoding is currently about 7 times slower than flac -5 and decoding about 2 times slower, measured on an Apple MacBook Pro.
+Every track decodes bit for bit. lac is about 2 percentage points behind flac -5 overall; linear prediction closed half of the earlier gap, most clearly on the glockenspiel (33.66% with fixed predictors only, 25.95% with LPC). The exhaustive search over predictors and stereo modes makes encoding about 20 times slower than flac -5; decoding is about 2 times slower, measured on an Apple MacBook Pro.
 
 To reproduce, with the WAV files in a folder outside the repository:
 
@@ -83,7 +83,7 @@ The codec core uses only the C++ standard library. No third-party signal process
 - [x] Fixed polynomial predictors (orders 0-4)
 - [x] Rice coding with adaptive parameter selection
 - [x] Mid/side stereo decorrelation
-- [ ] LPC via Levinson-Durbin
+- [x] LPC via Levinson-Durbin
 - [ ] Per-block strategy search
 - [ ] CRC integrity checks and malformed-input handling
 - [x] Benchmark against reference FLAC
