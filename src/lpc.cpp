@@ -3,9 +3,22 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <limits>
 #include <stdexcept>
 
 namespace lac {
+
+namespace {
+
+std::int64_t lpcPredict(std::span<const std::int32_t> x, std::size_t i, const QuantizedLpc& q) {
+    std::int64_t sum = 0;
+    for (std::size_t j = 0; j < q.coefficients.size(); ++j) {
+        sum += std::int64_t{q.coefficients[j]} * x[i - 1 - j];
+    }
+    return sum >> q.shift;
+}
+
+}
 
 std::vector<double> autocorrelation(std::span<const std::int32_t> samples, unsigned maxLag) {
     std::vector<double> r(maxLag + 1, 0.0);
@@ -58,6 +71,18 @@ QuantizedLpc quantizeLpc(std::span<const double> a, unsigned precision) {
         q.coefficients.push_back(static_cast<std::int32_t>(rounded));
     }
     return q;
+}
+
+std::optional<std::vector<std::int32_t>> lpcResidual(std::span<const std::int32_t> samples, const QuantizedLpc& q) {
+    std::vector<std::int32_t> residual;
+    for (std::size_t i = q.coefficients.size(); i < samples.size(); ++i) {
+        const std::int64_t r = samples[i] - lpcPredict(samples, i, q);
+        if (r < std::numeric_limits<std::int32_t>::min() || r > std::numeric_limits<std::int32_t>::max()) {
+            return std::nullopt;
+        }
+        residual.push_back(static_cast<std::int32_t>(r));
+    }
+    return residual;
 }
 
 }

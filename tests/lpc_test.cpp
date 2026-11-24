@@ -50,3 +50,13 @@ TEST(Lpc, QuantizedCoefficientsStayCloseAndFitThePrecision) {
         EXPECT_NEAR(std::ldexp(q.coefficients[i], -10), a[i], std::ldexp(1.0, -10));
     }
 }
+
+TEST(Lpc, ResidualWorkedExample) {
+    const lac::QuantizedLpc line{{2048, -1024}, 10};
+    const std::vector<std::int32_t> squares = {1, 4, 9, 16, 25};
+    EXPECT_EQ(lac::lpcResidual(squares, line), (std::vector<std::int32_t>{2, 2, 2}));
+}
+
+TEST(Lpc, ResidualRejectsOverflow) {
+    EXPECT_FALSE(lac::lpcResidual(std::vector<std::int32_t>{8388607, 8388607}, lac::QuantizedLpc{{16383}, 0}));
+}
