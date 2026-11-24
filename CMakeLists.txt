@@ -18,7 +18,8 @@ add_library(lac
   src/encoder.cpp
   src/decoder.cpp
   src/predictor.cpp
-  src/rice.cpp)
+  src/rice.cpp
+  src/lpc.cpp)
 target_include_directories(lac PUBLIC include)
 target_link_libraries(lac PRIVATE lac_warnings)
 
@@ -46,6 +47,7 @@ add_executable(lac_tests
   tests/codec_test.cpp
   tests/predictor_test.cpp
   tests/rice_test.cpp
-  tests/stereo_test.cpp)
+  tests/stereo_test.cpp
+  tests/lpc_test.cpp)
 target_link_libraries(lac_tests PRIVATE lac lac_warnings GTest::gtest_main)
 gtest_discover_tests(lac_tests DISCOVERY_TIMEOUT 30)
