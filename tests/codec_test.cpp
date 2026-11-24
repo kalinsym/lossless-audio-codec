@@ -119,3 +119,14 @@ TEST(Codec, StereoSideFitsAtTwentyFourBitExtremes) {
     EXPECT_EQ(out[17 + 8], lac::kChannelMidSide);
     EXPECT_EQ(lac::decode(out), wav);
 }
+
+TEST(Codec, TonalAudioUsesLpc) {
+    lac::WavFile wav = mono16(4096);
+    for (std::size_t i = 0; i < wav.samples.size(); ++i) {
+        const double t = static_cast<double>(i);
+        wav.samples[i] = static_cast<std::int32_t>(6000 * std::sin(t / 7) + 5000 * std::sin(t / 3) + 4000 * std::sin(t / 2));
+    }
+    const std::vector<std::uint8_t> out = lac::encode(wav);
+    EXPECT_EQ(out[17 + 10], lac::kSubframeLpc);
+    EXPECT_EQ(lac::decode(out), wav);
+}

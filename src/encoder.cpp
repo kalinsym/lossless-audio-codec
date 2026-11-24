@@ -1,11 +1,14 @@
 #include "lac/encoder.hpp"
 
+#include <algorithm>
 #include <cstddef>
+#include <optional>
 #include <span>
 #include <vector>
 
 #include "lac/bit_writer.hpp"
 #include "lac/crc.hpp"
+#include "lac/lpc.hpp"
 #include "lac/predictor.hpp"
 #include "lac/rice.hpp"
 #include "lac/stereo.hpp"
@@ -28,6 +31,38 @@ std::span<const std::uint8_t> bytesFrom(const BitWriter& w, std::size_t start) {
     return std::span<const std::uint8_t>(w.bytes()).subspan(start);
 }
 
+inline constexpr unsigned kLpcSearchOrder = 12;
+inline constexpr unsigned kLpcPrecision = 15;
+
+struct LpcPlan {
+    QuantizedLpc q;
+    unsigned k = 0;
+    std::vector<std::int32_t> residual;
+    std::uint64_t bits = 0;
+};
+
+std::optional<LpcPlan> planLpc(std::span<const std::int32_t> x, unsigned bitsPerSample) {
+    std::optional<LpcPlan> best;
+    const auto maxOrder = static_cast<unsigned>(std::min<std::size_t>(kLpcSearchOrder, x.size() / 2));
+    if (maxOrder == 0) {
+        return best;
+    }
+    const std::vector<double> r = autocorrelation(x, maxOrder);
+    for (unsigned order = 1; order <= maxOrder; ++order) {
+        QuantizedLpc q = quantizeLpc(levinsonDurbin(r, order), kLpcPrecision);
+        std::optional<std::vector<std::int32_t>> residual = lpcResidual(x, q);
+        if (!residual) {
+            continue;
+        }
+        const unsigned k = bestRiceParameter(*residual);
+        const std::uint64_t bits = 26 + std::uint64_t{order} * (bitsPerSample + kLpcPrecision) + riceBits(*residual, k);
+        if (!best || bits < best->bits) {
+            best = LpcPlan{std::move(q), k, std::move(*residual), bits};
+        }
+    }
+    return best;
+}
+
 void writeSubframe(BitWriter& w, std::span<const std::int32_t> x, unsigned bitsPerSample) {
     bool verbatim = true;
     unsigned bestOrder = 0;
@@ -43,6 +78,24 @@ void writeSubframe(BitWriter& w, std::span<const std::int32_t> x, unsigned bitsP
             bestK = k;
             bestBits = bits;
         }
+    }
+    const std::optional<LpcPlan> lpc = planLpc(x, bitsPerSample);
+    if (lpc && lpc->bits < bestBits) {
+        w.writeBits(kSubframeLpc, 8);
+        w.writeBits(static_cast<std::uint32_t>(lpc->q.coefficients.size() - 1), 5);
+        w.writeBits(kLpcPrecision - 1, 4);
+        w.writeBits(lpc->q.shift, 4);
+        w.writeBits(lpc->k, 5);
+        for (std::size_t i = 0; i < lpc->q.coefficients.size(); ++i) {
+            w.writeSigned(x[i], bitsPerSample);
+        }
+        for (const std::int32_t c : lpc->q.coefficients) {
+            w.writeSigned(c, kLpcPrecision);
+        }
+        for (const std::int32_t r : lpc->residual) {
+            writeRice(w, r, lpc->k);
+        }
+        return;
     }
     if (verbatim) {
         w.writeBits(kSubframeVerbatim, 8);
