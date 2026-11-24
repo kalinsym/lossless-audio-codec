@@ -26,6 +26,9 @@ add_executable(lac_cli cli/main.cpp)
 set_target_properties(lac_cli PROPERTIES OUTPUT_NAME lac)
 target_link_libraries(lac_cli PRIVATE lac lac_warnings)
 
+add_executable(lac_bench bench/main.cpp)
+target_link_libraries(lac_bench PRIVATE lac lac_warnings)
+
 include(FetchContent)
 FetchContent_Declare(googletest
   URL https://github.com/google/googletest/archive/refs/tags/v1.15.2.tar.gz
