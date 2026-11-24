@@ -85,4 +85,13 @@ std::optional<std::vector<std::int32_t>> lpcResidual(std::span<const std::int32_
     return residual;
 }
 
+std::vector<std::int32_t> lpcRestore(std::span<const std::int32_t> warmup, std::span<const std::int32_t> residual,
+                                     const QuantizedLpc& q) {
+    std::vector<std::int32_t> samples(warmup.begin(), warmup.end());
+    for (const std::int32_t r : residual) {
+        samples.push_back(static_cast<std::int32_t>(r + lpcPredict(samples, samples.size(), q)));
+    }
+    return samples;
+}
+
 }

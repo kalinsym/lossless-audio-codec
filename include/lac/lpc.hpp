@@ -20,6 +20,8 @@ std::vector<double> autocorrelation(std::span<const std::int32_t> samples, unsig
 std::vector<double> levinsonDurbin(std::span<const double> r, unsigned order);
 QuantizedLpc quantizeLpc(std::span<const double> a, unsigned precision);
 std::optional<std::vector<std::int32_t>> lpcResidual(std::span<const std::int32_t> samples, const QuantizedLpc& q);
+std::vector<std::int32_t> lpcRestore(std::span<const std::int32_t> warmup, std::span<const std::int32_t> residual,
+                                     const QuantizedLpc& q);
 
 }
 

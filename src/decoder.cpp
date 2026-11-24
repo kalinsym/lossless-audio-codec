@@ -6,6 +6,7 @@
 
 #include "lac/bit_reader.hpp"
 #include "lac/crc.hpp"
+#include "lac/lpc.hpp"
 #include "lac/predictor.hpp"
 #include "lac/rice.hpp"
 #include "lac/stereo.hpp"
@@ -39,6 +40,29 @@ StreamInfo readStreamHeader(BitReader& r, std::span<const std::uint8_t> bytes) {
     return info;
 }
 
+std::vector<std::int32_t> readLpcSubframe(BitReader& r, unsigned bitsPerSample, std::size_t frames) {
+    const unsigned order = r.readBits(5) + 1;
+    const unsigned precision = r.readBits(4) + 1;
+    QuantizedLpc q;
+    q.shift = r.readBits(4);
+    const unsigned k = r.readBits(5);
+    if (order > frames || k > kMaxRiceParameter) {
+        throw FormatError("decode: invalid LPC subframe");
+    }
+    std::vector<std::int32_t> warmup;
+    for (unsigned i = 0; i < order; ++i) {
+        warmup.push_back(r.readSigned(bitsPerSample));
+    }
+    for (unsigned i = 0; i < order; ++i) {
+        q.coefficients.push_back(r.readSigned(precision));
+    }
+    std::vector<std::int32_t> residual;
+    for (std::size_t f = order; f < frames; ++f) {
+        residual.push_back(readRice(r, k));
+    }
+    return lpcRestore(warmup, residual, q);
+}
+
 std::vector<std::int32_t> readSubframe(BitReader& r, unsigned bitsPerSample, std::size_t frames) {
     const std::uint32_t type = r.readBits(8);
     std::vector<std::int32_t> samples;
@@ -47,6 +71,9 @@ std::vector<std::int32_t> readSubframe(BitReader& r, unsigned bitsPerSample, std
             samples.push_back(r.readSigned(bitsPerSample));
         }
         return samples;
+    }
+    if (type == kSubframeLpc) {
+        return readLpcSubframe(r, bitsPerSample, frames);
     }
     if (type != kSubframeFixed) {
         throw FormatError("decode: unknown subframe type");

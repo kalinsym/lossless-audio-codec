@@ -11,6 +11,7 @@ inline constexpr std::uint16_t kFrameSync = 0xFFF8;
 inline constexpr unsigned kDefaultBlockSize = 4096;
 inline constexpr std::uint8_t kSubframeVerbatim = 0;
 inline constexpr std::uint8_t kSubframeFixed = 1;
+inline constexpr std::uint8_t kSubframeLpc = 2;
 inline constexpr std::uint8_t kChannelIndependent = 0;
 inline constexpr std::uint8_t kChannelLeftSide = 1;
 inline constexpr std::uint8_t kChannelRightSide = 2;

@@ -51,10 +51,21 @@ TEST(Lpc, QuantizedCoefficientsStayCloseAndFitThePrecision) {
     }
 }
 
-TEST(Lpc, ResidualWorkedExample) {
+TEST(Lpc, ResidualAndRestoreWorkedExample) {
     const lac::QuantizedLpc line{{2048, -1024}, 10};
     const std::vector<std::int32_t> squares = {1, 4, 9, 16, 25};
     EXPECT_EQ(lac::lpcResidual(squares, line), (std::vector<std::int32_t>{2, 2, 2}));
+    EXPECT_EQ(lac::lpcRestore(std::vector<std::int32_t>{1, 4}, std::vector<std::int32_t>{2, 2, 2}, line), squares);
+}
+
+TEST(Lpc, RestoreUndoesResidualOnRealCoefficients) {
+    std::vector<std::int32_t> x;
+    for (int i = 0; i < 4096; ++i) {
+        x.push_back(static_cast<std::int32_t>(std::lround(9000 * std::sin(0.05 * i) + 3000 * std::sin(0.7 * i))));
+    }
+    const lac::QuantizedLpc q = lac::quantizeLpc(lac::levinsonDurbin(lac::autocorrelation(x, 8), 8), 15);
+    const std::vector<std::int32_t> warmup(x.begin(), x.begin() + 8);
+    EXPECT_EQ(lac::lpcRestore(warmup, lac::lpcResidual(x, q).value(), q), x);
 }
 
 TEST(Lpc, ResidualRejectsOverflow) {
