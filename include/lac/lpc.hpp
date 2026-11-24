@@ -8,9 +8,16 @@
 namespace lac {
 
 inline constexpr unsigned kMaxLpcOrder = 32;
+inline constexpr unsigned kMaxLpcShift = 15;
+
+struct QuantizedLpc {
+    std::vector<std::int32_t> coefficients;
+    unsigned shift = 0;
+};
 
 std::vector<double> autocorrelation(std::span<const std::int32_t> samples, unsigned maxLag);
 std::vector<double> levinsonDurbin(std::span<const double> r, unsigned order);
+QuantizedLpc quantizeLpc(std::span<const double> a, unsigned precision);
 
 }
 

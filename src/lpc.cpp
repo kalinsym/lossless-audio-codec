@@ -1,5 +1,7 @@
 #include "lac/lpc.hpp"
 
+#include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <stdexcept>
 
@@ -35,6 +37,27 @@ std::vector<double> levinsonDurbin(std::span<const double> r, unsigned order) {
         error *= 1.0 - k * k;
     }
     return a;
+}
+
+QuantizedLpc quantizeLpc(std::span<const double> a, unsigned precision) {
+    double largest = 0.0;
+    for (const double c : a) {
+        largest = std::max(largest, std::abs(c));
+    }
+    int exponent = 0;
+    std::frexp(largest, &exponent);
+    const int shift = std::clamp(static_cast<int>(precision) - 1 - exponent, 0, static_cast<int>(kMaxLpcShift));
+    const double limit = std::ldexp(1.0, static_cast<int>(precision) - 1) - 1.0;
+    QuantizedLpc q;
+    q.shift = static_cast<unsigned>(shift);
+    double carry = 0.0;
+    for (const double c : a) {
+        const double scaled = std::clamp(std::ldexp(c, shift) + carry, -limit - 1.0, limit);
+        const double rounded = std::round(scaled);
+        carry = scaled - rounded;
+        q.coefficients.push_back(static_cast<std::int32_t>(rounded));
+    }
+    return q;
 }
 
 }

@@ -34,3 +34,19 @@ TEST(Lpc, LevinsonDurbinSolvesTheNormalEquations) {
         EXPECT_NEAR(sum, r[static_cast<std::size_t>(i + 1)], 1e-6 * r[0]) << "row " << i;
     }
 }
+
+TEST(Lpc, QuantizeWorkedExample) {
+    const lac::QuantizedLpc q = lac::quantizeLpc(std::vector<double>{0.5, -0.25}, 15);
+    EXPECT_EQ(q.shift, 14u);
+    EXPECT_EQ(q.coefficients, (std::vector<std::int32_t>{8192, -4096}));
+}
+
+TEST(Lpc, QuantizedCoefficientsStayCloseAndFitThePrecision) {
+    const std::vector<double> a = {1.9, -0.95, 0.123456, -1e-7};
+    const lac::QuantizedLpc q = lac::quantizeLpc(a, 12);
+    EXPECT_EQ(q.shift, 10u);
+    for (std::size_t i = 0; i < a.size(); ++i) {
+        EXPECT_LE(std::abs(q.coefficients[i]), 2047);
+        EXPECT_NEAR(std::ldexp(q.coefficients[i], -10), a[i], std::ldexp(1.0, -10));
+    }
+}
