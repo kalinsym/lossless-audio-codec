@@ -40,7 +40,6 @@ FetchContent_MakeAvailable(googletest)
 enable_testing()
 include(GoogleTest)
 add_executable(lac_tests
-  tests/bit_io_test.cpp
   tests/wav_test.cpp
   tests/wav_spec_test.cpp
   tests/crc_test.cpp

@@ -1,10 +1,12 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <random>
 #include <stdexcept>
 #include <vector>
 
 #include "lac/bit_reader.hpp"
+#include "lac/bit_writer.hpp"
 
 using Bytes = std::vector<std::uint8_t>;
 
@@ -63,4 +65,45 @@ TEST(BitReader, ThrowsAtTheEndOfTheData) {
     const Bytes allZeros = {0x00};
     lac::BitReader zeros(allZeros);
     EXPECT_THROW(zeros.readUnary(), std::out_of_range);
+}
+
+TEST(BitIo, RandomMixedStreamRoundTrips) {
+    struct Item {
+        int kind;
+        unsigned width;
+        std::int64_t value;
+    };
+    std::mt19937 rng(11);
+    std::vector<Item> items;
+    lac::BitWriter w;
+    for (int i = 0; i < 3000; ++i) {
+        const auto kind = static_cast<int>(rng() % 3);
+        const unsigned width = 1 + static_cast<unsigned>(rng() % 32);
+        const auto bits = static_cast<std::uint32_t>(rng() >> (32 - width));
+        if (kind == 0) {
+            w.writeBits(bits, width);
+            items.push_back({kind, width, bits});
+        } else if (kind == 1) {
+            const std::int64_t half = std::int64_t{1} << (width - 1);
+            const std::int64_t value = bits >= half ? bits - 2 * half : std::int64_t{bits};
+            w.writeSigned(static_cast<std::int32_t>(value), width);
+            items.push_back({kind, width, value});
+        } else {
+            w.writeUnary(bits % 100);
+            items.push_back({kind, 0, bits % 100});
+        }
+    }
+    w.flush();
+    lac::BitReader r(w.bytes());
+    for (const Item& item : items) {
+        std::int64_t read = 0;
+        if (item.kind == 0) {
+            read = r.readBits(item.width);
+        } else if (item.kind == 1) {
+            read = r.readSigned(item.width);
+        } else {
+            read = r.readUnary();
+        }
+        ASSERT_EQ(read, item.value);
+    }
 }
