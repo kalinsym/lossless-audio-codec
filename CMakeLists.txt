@@ -41,7 +41,6 @@ enable_testing()
 include(GoogleTest)
 add_executable(lac_tests
   tests/wav_test.cpp
-  tests/wav_spec_test.cpp
   tests/crc_test.cpp
   tests/codec_test.cpp
   tests/predictor_test.cpp

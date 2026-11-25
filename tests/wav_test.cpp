@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 #include "lac/wav.hpp"
@@ -106,4 +108,50 @@ TEST(Wav, SerializeRejectsSampleOutOfRange) {
     wav.bitsPerSample = 16;
     wav.samples = {32768};
     EXPECT_THROW(lac::serializeWav(wav), lac::WavError);
+}
+
+TEST(Wav, IgnoresTheRiffSizeField) {
+    Bytes file = minimalMono16();
+    file[4] = 0xFF;
+    file[5] = 0xFF;
+    EXPECT_EQ(lac::parseWav(file).samples, (std::vector<std::int32_t>{1000, -32768}));
+}
+
+TEST(Wav, RejectsEmptyShortAndMislabelledInput) {
+    const Bytes file = minimalMono16();
+    EXPECT_THROW(lac::parseWav(Bytes{}), lac::WavError);
+    EXPECT_THROW(lac::parseWav(Bytes(file.begin(), file.begin() + 11)), lac::WavError);
+    EXPECT_THROW(lac::parseWav(Bytes(file.begin(), file.begin() + 12)), lac::WavError);
+    Bytes notWave = file;
+    notWave[8] = 'X';
+    EXPECT_THROW(lac::parseWav(notWave), lac::WavError);
+}
+
+TEST(Wav, RejectsMissingOrMisplacedChunks) {
+    Bytes noData = minimalMono16();
+    noData.resize(36);
+    EXPECT_THROW(lac::parseWav(noData), lac::WavError);
+    Bytes dataFirst = minimalMono16();
+    dataFirst[12] = 'x';
+    EXPECT_THROW(lac::parseWav(dataFirst), lac::WavError);
+}
+
+TEST(Wav, RejectsDataThatDoesNotFit) {
+    Bytes tooLong = minimalMono16();
+    tooLong[40] = 0x08;
+    EXPECT_THROW(lac::parseWav(tooLong), lac::WavError);
+    Bytes partialFrame = minimalMono16();
+    partialFrame[40] = 0x03;
+    partialFrame.pop_back();
+    EXPECT_THROW(lac::parseWav(partialFrame), lac::WavError);
+}
+
+TEST(Wav, RejectsUnsupportedFormats) {
+    const Bytes file = minimalMono16();
+    for (const auto& [offset, value] : std::vector<std::pair<std::size_t, std::uint8_t>>{
+             {20, 3}, {22, 0}, {34, 12}, {34, 32}, {16, 14}}) {
+        Bytes changed = file;
+        changed[offset] = value;
+        EXPECT_THROW(lac::parseWav(changed), lac::WavError) << "byte " << offset << " = " << int{value};
+    }
 }
