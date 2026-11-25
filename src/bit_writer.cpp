@@ -28,6 +28,13 @@ void BitWriter::writeUnary(std::uint32_t quotient) {
     writeBits(1, quotient + 1);
 }
 
+void BitWriter::append(const BitWriter& other) {
+    for (const std::uint8_t byte : other.buffer_) {
+        writeBits(byte, 8);
+    }
+    writeBits(static_cast<std::uint32_t>(other.acc_), other.count_);
+}
+
 void BitWriter::flush() {
     if (count_ == 0) {
         return;

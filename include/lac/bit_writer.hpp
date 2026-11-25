@@ -11,6 +11,7 @@ public:
     void writeBits(std::uint32_t value, unsigned width);
     void writeSigned(std::int32_t value, unsigned width);
     void writeUnary(std::uint32_t quotient);
+    void append(const BitWriter& other);
     void flush();
 
     const std::vector<std::uint8_t>& bytes() const;

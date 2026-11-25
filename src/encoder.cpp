@@ -115,38 +115,35 @@ void writeSubframe(BitWriter& w, std::span<const std::int32_t> x, unsigned bitsP
     }
 }
 
-std::uint64_t subframeBits(std::span<const std::int32_t> x, unsigned bitsPerSample) {
-    BitWriter scratch;
-    writeSubframe(scratch, x, bitsPerSample);
-    return scratch.bitCount();
+BitWriter encodeSubframe(std::span<const std::int32_t> x, unsigned bitsPerSample) {
+    BitWriter w;
+    writeSubframe(w, x, bitsPerSample);
+    return w;
 }
 
-std::uint32_t chooseStereo(std::vector<std::int32_t>& a, std::vector<std::int32_t>& b, unsigned bits) {
+std::uint32_t chooseStereo(std::span<const std::int32_t> a, std::span<const std::int32_t> b, unsigned bits,
+                           std::vector<BitWriter>& chosen) {
     std::vector<std::int32_t> mid(a.size());
     std::vector<std::int32_t> side(a.size());
     for (std::size_t f = 0; f < a.size(); ++f) {
         mid[f] = midOf(a[f], b[f]);
         side[f] = sideOf(a[f], b[f]);
     }
-    const std::uint64_t l = subframeBits(a, bits);
-    const std::uint64_t r = subframeBits(b, bits);
-    const std::uint64_t s = subframeBits(side, bits + 1);
-    const std::uint64_t cost[] = {l + r, l + s, s + r, subframeBits(mid, bits) + s};
+    std::vector<BitWriter> sub;
+    sub.push_back(encodeSubframe(a, bits));
+    sub.push_back(encodeSubframe(b, bits));
+    sub.push_back(encodeSubframe(mid, bits));
+    sub.push_back(encodeSubframe(side, bits + 1));
+    constexpr std::size_t uses[4][2] = {{0, 1}, {0, 3}, {3, 1}, {2, 3}};
     std::uint32_t mode = kChannelIndependent;
     for (std::uint32_t m = 1; m <= kChannelMidSide; ++m) {
-        if (cost[m] < cost[mode]) {
+        const std::uint64_t cost = sub[uses[m][0]].bitCount() + sub[uses[m][1]].bitCount();
+        if (cost < sub[uses[mode][0]].bitCount() + sub[uses[mode][1]].bitCount()) {
             mode = m;
         }
     }
-    if (mode == kChannelMidSide) {
-        a = mid;
-    }
-    if (isSideChannel(mode, 0)) {
-        a = side;
-    }
-    if (isSideChannel(mode, 1)) {
-        b = side;
-    }
+    chosen.push_back(std::move(sub[uses[mode][0]]));
+    chosen.push_back(std::move(sub[uses[mode][1]]));
     return mode;
 }
 
@@ -162,12 +159,17 @@ void writeFrame(BitWriter& w, const WavFile& wav, std::size_t firstFrame,
             channels[ch][f] = wav.samples[(firstFrame + f) * wav.channels + ch];
         }
     }
-    const std::uint32_t mode =
-        wav.channels == 2 ? chooseStereo(channels[0], channels[1], wav.bitsPerSample) : kChannelIndependent;
+    std::vector<BitWriter> subframes;
+    std::uint32_t mode = kChannelIndependent;
+    if (wav.channels == 2) {
+        mode = chooseStereo(channels[0], channels[1], wav.bitsPerSample, subframes);
+    } else {
+        subframes.push_back(encodeSubframe(channels[0], wav.bitsPerSample));
+    }
     w.writeBits(mode, 8);
     w.writeBits(crc8(bytesFrom(w, start)), 8);
-    for (unsigned ch = 0; ch < wav.channels; ++ch) {
-        writeSubframe(w, channels[ch], wav.bitsPerSample + (isSideChannel(mode, ch) ? 1u : 0u));
+    for (const BitWriter& subframe : subframes) {
+        w.append(subframe);
     }
     w.flush();
     w.writeBits(crc16(bytesFrom(w, start)), 16);

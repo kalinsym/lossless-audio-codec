@@ -48,6 +48,7 @@ add_executable(lac_tests
   tests/predictor_test.cpp
   tests/rice_test.cpp
   tests/stereo_test.cpp
-  tests/lpc_test.cpp)
+  tests/lpc_test.cpp
+  tests/bit_writer_test.cpp)
 target_link_libraries(lac_tests PRIVATE lac lac_warnings GTest::gtest_main)
 gtest_discover_tests(lac_tests DISCOVERY_TIMEOUT 30)
