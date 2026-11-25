@@ -10,7 +10,7 @@ Author: Kalin Simeonov. Advisor: Prof. Vladimir Georgiev.
 Version 0.4: each block of each channel is coded with the smallest of verbatim samples, the fixed polynomial predictors (orders 0 to 4) and linear prediction (LPC, orders 1 to 12, coefficients from the Levinson-Durbin recursion quantized to 15 bits), with Rice coding of the residuals. Stereo frames are coded as left/right, left/side, right/side or mid/side, whichever is smallest (87 tests).
 A WAV file encoded and decoded again is identical bit for bit, and every single-bit error in an encoded file is detected.
 Supported input: PCM WAV, mono or stereo, 8, 16 or 24 bits per sample.
-Next: a faster encoder search and hardening.
+Next: hardening against malformed input and our own replacements for the specification tests.
 
 ## Building
 
@@ -48,7 +48,7 @@ Eleven tracks of the EBU SQAM test set (EBU Tech 3253), 16-bit, 44.1 kHz stereo,
 | 70 Pop (Eddie Rabbitt) | 38.87% | 35.96% | 35.52% |
 | All files | 34.39% | 32.46% | 31.96% |
 
-Every track decodes bit for bit. lac is about 2 percentage points behind flac -5 overall; linear prediction closed half of the earlier gap, most clearly on the glockenspiel (33.66% with fixed predictors only, 25.95% with LPC). The exhaustive search over predictors and stereo modes makes encoding about 20 times slower than flac -5; decoding is about 2 times slower, measured on an Apple MacBook Pro.
+Every track decodes bit for bit. lac is about 2 percentage points behind flac -5 overall; linear prediction closed half of the earlier gap, most clearly on the glockenspiel (33.66% with fixed predictors only, 25.95% with LPC). Encoding is about 8 times slower than flac -5, because the encoder measures every predictor and stereo mode exactly; choosing the Rice parameter from the mean residual and reusing the trial subframes made it about 3 times faster than in version 0.4, with identical output. Decoding is about 2 times slower than flac -5. Times were measured on an Apple MacBook Pro.
 
 To reproduce, with the WAV files in a folder outside the repository:
 
