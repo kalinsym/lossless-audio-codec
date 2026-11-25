@@ -1,5 +1,6 @@
 #include "lac/rice.hpp"
 
+#include <algorithm>
 #include <stdexcept>
 
 namespace lac {
@@ -27,9 +28,21 @@ std::uint64_t riceBits(std::span<const std::int32_t> residual, unsigned k) {
 }
 
 unsigned bestRiceParameter(std::span<const std::int32_t> residual) {
-    unsigned best = 0;
-    std::uint64_t bestBits = riceBits(residual, 0);
-    for (unsigned k = 1; k <= kMaxRiceParameter; ++k) {
+    if (residual.empty()) {
+        return 0;
+    }
+    std::uint64_t sum = 0;
+    for (const std::int32_t r : residual) {
+        sum += zigzag(r);
+    }
+    const std::uint64_t mean = sum / residual.size();
+    unsigned guess = 0;
+    while (guess < kMaxRiceParameter && (std::uint64_t{1} << (guess + 1)) <= mean) {
+        ++guess;
+    }
+    unsigned best = guess > 0 ? guess - 1 : 0;
+    std::uint64_t bestBits = riceBits(residual, best);
+    for (unsigned k = best + 1; k <= std::min(guess + 1, kMaxRiceParameter); ++k) {
         const std::uint64_t bits = riceBits(residual, k);
         if (bits < bestBits) {
             best = k;

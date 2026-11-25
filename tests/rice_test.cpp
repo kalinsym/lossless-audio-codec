@@ -1,7 +1,10 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <limits>
+#include <random>
 #include <stdexcept>
 #include <vector>
 
@@ -66,4 +69,21 @@ TEST(Rice, BestParameterGrowsWithTheResiduals) {
     EXPECT_EQ(lac::bestRiceParameter(std::vector<std::int32_t>{}), 0u);
     EXPECT_EQ(lac::bestRiceParameter(std::vector<std::int32_t>{0, 0, 1, -1, 0}), 0u);
     EXPECT_EQ(lac::bestRiceParameter(std::vector<std::int32_t>{1000, -1000, 999, -999}), 10u);
+}
+
+TEST(Rice, FastParameterChoiceMatchesExhaustiveSearch) {
+    std::mt19937 rng(3);
+    for (int scale = 0; scale < 24; ++scale) {
+        std::exponential_distribution<double> laplace(1.0 / std::ldexp(1.0, scale));
+        std::vector<std::int32_t> residual;
+        for (int i = 0; i < 1000; ++i) {
+            const auto magnitude = static_cast<std::int32_t>(laplace(rng));
+            residual.push_back(i % 2 == 0 ? magnitude : -magnitude);
+        }
+        std::uint64_t smallest = lac::riceBits(residual, 0);
+        for (unsigned k = 1; k <= lac::kMaxRiceParameter; ++k) {
+            smallest = std::min(smallest, lac::riceBits(residual, k));
+        }
+        EXPECT_EQ(lac::riceBits(residual, lac::bestRiceParameter(residual)), smallest) << "scale " << scale;
+    }
 }
