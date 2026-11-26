@@ -7,10 +7,9 @@ Author: Kalin Simeonov. Advisor: Prof. Vladimir Georgiev.
 
 ## Status
 
-Version 0.4: each block of each channel is coded with the smallest of verbatim samples, the fixed polynomial predictors (orders 0 to 4) and linear prediction (LPC, orders 1 to 12, coefficients from the Levinson-Durbin recursion quantized to 15 bits), with Rice coding of the residuals. Stereo frames are coded as left/right, left/side, right/side or mid/side, whichever is smallest (87 tests).
-A WAV file encoded and decoded again is identical bit for bit, and every single-bit error in an encoded file is detected.
+Version 1.0. Each block of each channel is coded with the smallest of verbatim samples, the fixed polynomial predictors (orders 0 to 4) and linear prediction (LPC, orders 1 to 12, coefficients from the Levinson-Durbin recursion quantized to 15 bits), with Rice coding of the residuals. Stereo frames are coded as left/right, left/side, right/side or mid/side, whichever is smallest.
+A WAV file encoded and decoded again is identical bit for bit. The decoder checks every header and frame with CRC-8 and CRC-16 and rejects damaged, truncated or malformed input with a clear error instead of returning wrong audio.
 Supported input: PCM WAV, mono or stereo, 8, 16 or 24 bits per sample.
-Next: hardening against malformed input and our own replacements for the specification tests.
 
 ## Building
 
@@ -28,6 +27,20 @@ ctest --test-dir build
 ./build/lac encode input.wav output.lac
 ./build/lac decode output.lac restored.wav
 ```
+
+## Testing
+
+`ctest --test-dir build` runs 75 tests: worked examples for each component, round trips for every sample format in mono and stereo, a test that every single-bit error is detected, and hardening tests that feed the decoder thousands of random and damaged files. To run them under AddressSanitizer and UndefinedBehaviorSanitizer:
+
+```
+cmake -S . -B build-san -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined"
+cmake --build build-san
+ctest --test-dir build-san
+```
+
+## File format
+
+A `.lac` file is a 17-byte stream header (magic `LAC1`, sample rate, channels, bits per sample, block size, total frames, CRC-8) followed by frames of up to one block of samples per channel. Each frame has a sync code, frame number, length and stereo mode, protected by a CRC-8, then one subframe per channel and a CRC-16 over the whole frame. A subframe is verbatim samples, a fixed predictor (order and Rice parameter, warm-up samples, Rice-coded residuals) or an LPC predictor (order, precision, shift and Rice parameter, warm-up samples, quantized coefficients, Rice-coded residuals).
 
 ## Benchmark
 
@@ -58,7 +71,7 @@ cmake --build build-release
 python3 bench/compare.py path/to/*.wav
 ```
 
-## Planned repository layout
+## Repository layout
 
 ```
 include/lac/   public headers
@@ -66,13 +79,12 @@ src/           library implementation
 cli/           command-line encoder and decoder
 tests/         unit and round-trip tests
 bench/         benchmark against reference FLAC
-docs/          format specification and notes
 corpus/        test audio (not tracked)
 ```
 
 ## Dependencies
 
-The codec core uses only the C++ standard library. No third-party signal processing or compression libraries are used.
+The codec core uses only the C++ standard library. No third-party signal processing or compression libraries are used. The tests use GoogleTest 1.15.2, which CMake downloads at configure time.
 
 ## Roadmap
 
@@ -84,6 +96,6 @@ The codec core uses only the C++ standard library. No third-party signal process
 - [x] Rice coding with adaptive parameter selection
 - [x] Mid/side stereo decorrelation
 - [x] LPC via Levinson-Durbin
-- [ ] Per-block strategy search
-- [ ] CRC integrity checks and malformed-input handling
+- [x] Per-block strategy search
+- [x] CRC integrity checks and malformed-input handling
 - [x] Benchmark against reference FLAC
