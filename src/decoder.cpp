@@ -93,6 +93,15 @@ std::vector<std::int32_t> readSubframe(BitReader& r, unsigned bitsPerSample, std
     return fixedRestore(samples, residual);
 }
 
+void checkRange(std::span<const std::int32_t> samples, unsigned bits) {
+    const std::int64_t limit = std::int64_t{1} << (bits - 1);
+    for (const std::int32_t s : samples) {
+        if (s < -limit || s >= limit) {
+            throw FormatError("decode: sample out of range");
+        }
+    }
+}
+
 void undoStereo(std::uint32_t mode, std::vector<std::int32_t>& a, std::vector<std::int32_t>& b) {
     for (std::size_t f = 0; f < a.size(); ++f) {
         if (mode == kChannelLeftSide) {
@@ -129,11 +138,13 @@ void readFrame(BitReader& r, std::span<const std::uint8_t> bytes, const StreamIn
     for (unsigned ch = 0; ch < info.channels; ++ch) {
         const unsigned bits = info.bitsPerSample + (isSideChannel(mode, ch) ? 1u : 0u);
         channels.push_back(readSubframe(r, bits, frames));
+        checkRange(channels.back(), bits);
     }
     if (info.channels == 2) {
         undoStereo(mode, channels[0], channels[1]);
     }
     for (unsigned ch = 0; ch < info.channels; ++ch) {
+        checkRange(channels[ch], info.bitsPerSample);
         for (std::size_t f = 0; f < frames; ++f) {
             out.samples[base + f * info.channels + ch] = channels[ch][f];
         }

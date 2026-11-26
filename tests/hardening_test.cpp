@@ -4,8 +4,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <random>
+#include <span>
 #include <vector>
 
+#include "lac/bit_writer.hpp"
+#include "lac/crc.hpp"
 #include "lac/decoder.hpp"
 #include "lac/encoder.hpp"
 
@@ -77,4 +80,30 @@ TEST(Hardening, DecoderSurvivesDamagedFiles) {
         rejections += rejected(bad) ? 1 : 0;
     }
     EXPECT_GE(rejections, trials * 99 / 100);
+}
+
+TEST(Hardening, RejectsPredictionOutsideTheSampleRange) {
+    lac::BitWriter w;
+    w.writeBits(lac::kMagic, 32);
+    w.writeBits(8000, 32);
+    w.writeBits(1, 8);
+    w.writeBits(8, 8);
+    w.writeBits(2, 16);
+    w.writeBits(2, 32);
+    w.writeBits(lac::crc8(w.bytes()), 8);
+    const std::size_t frame = w.bytes().size();
+    w.writeBits(lac::kFrameSync, 16);
+    w.writeBits(0, 32);
+    w.writeBits(2, 16);
+    w.writeBits(lac::kChannelIndependent, 8);
+    w.writeBits(lac::crc8(std::span<const std::uint8_t>(w.bytes()).subspan(frame)), 8);
+    w.writeBits(lac::kSubframeFixed, 8);
+    w.writeBits(1, 3);
+    w.writeBits(8, 5);
+    w.writeSigned(127, 8);
+    w.writeUnary(0);
+    w.writeBits(254, 8);
+    w.flush();
+    w.writeBits(lac::crc16(std::span<const std::uint8_t>(w.bytes()).subspan(frame)), 16);
+    EXPECT_THROW(lac::decode(w.bytes()), lac::FormatError);
 }
